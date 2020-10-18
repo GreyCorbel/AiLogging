@@ -48,6 +48,8 @@ jobs:
       env:
         SECRET: ${{ secrets.PSGallery_APIKey }}
       run: |
+        $Name = 'AiLogging'
+        $Target = "$env:GITHUB_WORKSPACE\$Name"
         write-host "Publishing from: $Target"
         try
         {
@@ -61,6 +63,8 @@ jobs:
           Write-Host "Error: $($_.Exception)"
           throw
         }
+      
+      #Create a release
     - name: Create Release
       id: create_release
       uses: actions/create-release@v1
