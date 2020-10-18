@@ -56,7 +56,7 @@ jobs:
         {
           if($null -ne $target)
           {
-            #Publish-Module -Path $target -NuGetApiKey "$env:SECRET"
+            Publish-Module -Path $target -NuGetApiKey "$env:SECRET"
           }
         }
         catch
@@ -68,10 +68,11 @@ jobs:
       #Create a release
     - name: Create Release
       id: create_release
-      uses: meeDamian/github-release@2.0
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions automatically
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        name: Release ${{ github.ref }}
-        draft: true
-        prerelease: true
-        files: AiLogging/
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
