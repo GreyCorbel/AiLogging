@@ -67,11 +67,10 @@ jobs:
       #Create a release
     - name: Create Release
       id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions automatically
+      uses: meeDamian/github-release@2.0
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        name: Release ${{ github.ref }}
         draft: false
         prerelease: false
+        files: AiLogging/
