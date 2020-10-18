@@ -394,6 +394,7 @@ Function Set-AiOperationContext
     <#
     .SYNOPSIS
         Registers operation ID and name to be sent with all telemetry produced after registered - until this command is called without parameters, which unregisters operation ID and name.
+        Use ParentId when interested in anylysis of logged chained operations
     #>
     [CmdletBinding()]
     param (
@@ -404,13 +405,19 @@ Function Set-AiOperationContext
         [Parameter()]
         [string]
             #Name of running operation
-        $Name
+        $Name,
+        [Parameter()]
+        [string]
+            #Name of parent operation (if any)
+            #Useful for logging of chained operations
+        $ParentId
     )
 
     Process
     {
         $script:telemetryClient.Context.Operation.Id = $Id
         $script:telemetryClient.Context.Operation.Name = $Name
+        $script:telemetryClient.Context.Operation.ParentId = $ParentId
     }
 }
 
@@ -455,7 +462,7 @@ function IsInitialized
 #endregion
 
 
-#region ImplicitInitialization
+#region ImplicitInitialization for arguments passed to Import-Module
 $script:ProtectedMetadata = @()
 
 if(-not ([string]::IsNullOrEmpty($InstrumentationKey) -or [string]::IsNullOrEmpty($Application) -or [string]::IsNullOrEmpty($Component)))
