@@ -279,6 +279,11 @@ Function Write-AiMetric
 
 function Write-AiDependency
 {
+    <#
+    .SYNOPSIS
+        Logs a call to external service
+        Logged call is used by Application Insights to populate Application Map blade
+    #>
     param
     (
         [Parameter(Mandatory)]
@@ -295,16 +300,24 @@ function Write-AiDependency
         $Name,
         [Parameter()]
         [string]
-            #Dependency details
+            #Dependency details, such as name of SQL stored procedure, or complete URL requested via HTTP
         $Data,
         [Parameter(Mandatory)]
         [DateTime]
-            #When started
+            #When the call started
         $Start,
         [Parameter(Mandatory)]
         [TimeSpan]
-            #duration of call
+            #Duration of the call
         $Duration,
+        [Parameter()]
+        [string]
+            #Result code returned by the service
+        $ResultCode,
+        [Parameter()]
+        [System.Collections.Generic.Dictionary[String,Double]]
+            #Optional metrics to be sent with the dependency data
+        $Metrics=$null,
         [Parameter()]
         [bool]
             #Whether or not call was successful
@@ -322,7 +335,13 @@ function Write-AiDependency
         $dependencyData.Success = $Success
         $dependencyData.Target = $Target
         $dependencyData.Data = $Data
-        
+        $dependencyData.ResultCode = $ResultCode
+        if($null -ne $Metrics) {
+            foreach($key in $Metrics.Keys) {
+                $dependencyData.Metrics[$Key] = $Metrics[$key]
+            }
+        }
+
         $script:telemetryClient.TrackDependency($dependencyData)
     }
 }
@@ -331,7 +350,8 @@ Function Write-AiEvent
 {
     <#
     .SYNOPSIS
-        Traces event along with optional custom metadata and metrics
+        Traces event along with optional custom metadata and metrics.
+        Usable when logging additional metrics associated with/related to the event that is not suitable to be logged standalone
     #>
     param (
         [Parameter(Mandatory, ValueFromPipeline)]
@@ -368,7 +388,7 @@ Function New-AiMetric
 {
     <#
     .SYNOPSIS
-        Creates Dictionary<String,Double> suitable for adding custom metric values and then sending with Events or Exceptions.
+        Creates Dictionary<String,Double> suitable for adding custom metric values and then sending with Events or Exceptions as Metrics parameter
         Not suitable for sending standalone metrics - use Write-AiMetric instead
     #>
     Process
@@ -381,7 +401,7 @@ Function New-AiMetadata
 {
     <#
     .SYNOPSIS
-        Creates Dictionary<String,String> suitable for adding custom metadata and then sending with Events, Traces, Metrics or Exceptions as AdditionalMetadata parameter
+        Creates Dictionary<String,String> suitable for adding custom metadata and then sending with Events, Traces, Metrics or Exceptions as Metadata parameter
     #>
     Process
     {
