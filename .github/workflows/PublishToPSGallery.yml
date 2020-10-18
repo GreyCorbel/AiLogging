@@ -7,7 +7,7 @@ name: CI
 on:
   push:
     branches:
-      - master
+      - main
     paths:
       - '**.psd1'
       - '**.psm1'
