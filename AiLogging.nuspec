@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+	<metadata>
+        <id>AiLogging</id>
+        <version>$version$</version>
+        <title>Skoda Auto Telemetry Standardization package for PowerShell</title>
+        <authors>Jiri Formacek, GreyCorbel Solutions</authors>
+        <owners>GreyCorbel Solutions</owners>
+        <license type="expression">MIT</license>
+        <projectUrl>https://tfs.skoda-auto.com/tfs/B2C_Operation/AzureGovernance/_git/Telemetry</projectUrl>
+        <icon>images\icon.png</icon>
+        <repository type="git" url="https://tfs.skoda-auto.com/tfs/B2C_Operation/AzureGovernance/_git/Telemetry" commit="$commit$"/>
+        <requireLicenseAcceptance>false</requireLicenseAcceptance>
+        <description>Microsoft Application Insights TelemetryClient wrapper module for Powershell that enforces Skoda Auto logging standards. Provided as reference implementation for PowerShell based projects.</description>
+        <releaseNotes>Initial release</releaseNotes>
+        <copyright></copyright>
+        <tags>AppInsights Telemetry PowerShell</tags>
+        <dependencies>
+	        <group targetFramework=".NETFramework4.5">
+	        </group>
+        </dependencies>
+
+    </metadata>
+    <files>
+        <file src=".\AiLogging.psm1" target="\" />
+        <file src=".\AiLogging.psd1" target="\" />
+        <file src=".\images\icon.png" target="images\" />
+        <file src="lib\net45\Microsoft.ApplicationInsights.dll" target="lib\net45" />
+    </files>
+</package>
