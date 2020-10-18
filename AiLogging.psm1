@@ -173,6 +173,10 @@ Function Write-AiTrace
     .EXAMPLE
         Write-AiTrace 'Beginning processing'
 
+    .EXAMPLE
+        $meta = New-AiMetadata
+        $meta['Context']='MyContext'
+        Write-AiTrace -Message "Performed context-specific action" -AdditionalMetadata $meta
     #>
     param (
         [Parameter(Mandatory, ValueFromPipeline)]
