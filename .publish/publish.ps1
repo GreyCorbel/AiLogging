@@ -39,6 +39,7 @@ Update-Manifest -ManifestFile .\AiLogging.psd1 -AttributeName ModuleVersion -Att
 git add .\AiLogging.psd1
 #commit changes manifest
 git commit -m "Version $version for publishing on PSGallery"
+git push origin
 #create a version tag that triggers CI
 git tag "v$version" -a -m "Version $version for publishing on PSGallery"
 #push changes
