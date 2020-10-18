@@ -313,7 +313,7 @@ function Write-AiDependency
         [Parameter()]
         [string]
             #Result code returned by the service
-        $ResultCode,
+        $ResultCode=$null,
         [Parameter()]
         [System.Collections.Generic.Dictionary[String,Double]]
             #Optional metrics to be sent with the dependency data
@@ -335,7 +335,9 @@ function Write-AiDependency
         $dependencyData.Success = $Success
         $dependencyData.Target = $Target
         $dependencyData.Data = $Data
-        $dependencyData.ResultCode = $ResultCode
+        if($null -ne $ResultCode) {
+            $dependencyData.ResultCode = $ResultCode
+        }
         if($null -ne $Metrics) {
             foreach($key in $Metrics.Keys) {
                 $dependencyData.Metrics[$Key] = $Metrics[$key]
