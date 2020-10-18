@@ -8,9 +8,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - '**.psd1'
-      - '**.psm1'
     tags:
       - 'v*'
 
