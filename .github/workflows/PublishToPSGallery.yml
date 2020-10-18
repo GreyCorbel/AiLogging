@@ -51,11 +51,12 @@ jobs:
         $Name = 'AiLogging'
         $Target = "$env:GITHUB_WORKSPACE\$Name"
         write-host "Publishing from: $Target"
+        Get-Item -Path env:* | Out-String | Write-host
         try
         {
           if($null -ne $target)
           {
-            Publish-Module -Path $target -NuGetApiKey "$env:SECRET"
+            #Publish-Module -Path $target -NuGetApiKey "$env:SECRET"
           }
         }
         catch
@@ -71,6 +72,6 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         name: Release ${{ github.ref }}
-        draft: false
-        prerelease: false
+        draft: true
+        prerelease: true
         files: AiLogging/
