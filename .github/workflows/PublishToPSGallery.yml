@@ -30,6 +30,7 @@ jobs:
       run: |
         $Name = 'AiLogging'
         $Target = "$env:GITHUB_WORKSPACE\$Name"
+        dir "$env:GITHUB_WORKSPACE" -recurse
         write-host "Building in: $env:GITHUB_WORKSPACE\$Name"
         New-Item -Path  "$env:GITHUB_WORKSPACE" -Name $Name -ItemType Directory -Force | Out-Null
         New-Item -Path  "$env:GITHUB_WORKSPACE" -Name Assets -ItemType Directory -Force | Out-Null
