@@ -4,6 +4,7 @@ Param
     $version
 )
 
+#credit goes to Joel Bennett for https://gist.github.com/Jaykul/0031bbb459c1ab6ced2bde7558130ede
 Function Update-Manifest
 {
     param
@@ -32,8 +33,13 @@ Function Update-Manifest
     }
 }
 
-#credit to https://gist.github.com/Jaykul/0031bbb459c1ab6ced2bde7558130ede
+#write version to module manifest
 Update-Manifest -ManifestFile .\AiLogging.psd1 -AttributeName ModuleVersion -AttributeValue "'$version'"
-git push origin
-git tag "v$version" -a -m 'Version $version" for publishing on PSGallery'
+#stage changes in manifest
+git add .\AiLogging.psd1
+#commit changes manifest
+git commit -m "Version $version for publishing on PSGallery"
+#create a version tag that triggers CI
+git tag "v$version" -a -m "Version $version for publishing on PSGallery"
+#push changes
 git push origin --tags
