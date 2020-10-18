@@ -105,6 +105,10 @@ Function Initialize-AiLogger
     This command must be called before any other commands from module. It creates necessary structures for logging and connects toApplication Insights instance identified by intrumentation key.
     Command also registers custom dimensions to be sent with all data; dimensions are Application and Components named passed as parameter. This helps easy filter logs related to different apps and components stored in single AppInsights instance.
     Command also registers metric namespace for logging of standalone metrics via Write-AiMetric command.
+
+.EXAMPLE
+    Initialize-AiLogger -InstrumentationKey '9ccdf7c4-7dcb-4659-87b8-639126191720' -Application MyApp -Component 'MyAppComponent'
+
     #>
     Param
     (
@@ -165,6 +169,10 @@ Function Write-AiTrace
     .SYNOPSIS
         Writes trace message with severity and optional custom metadata.
         Default severity level is Verbose
+    
+    .EXAMPLE
+        Write-AiTrace 'Beginning processing'
+
     #>
     param (
         [Parameter(Mandatory, ValueFromPipeline)]
