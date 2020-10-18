@@ -12,7 +12,7 @@
 RootModule = 'AiLogging.psm1'
 
 # Version number of this module.
-ModuleVersion = '1.3.9'
+ModuleVersion = '1.4.0-alpha1'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Desktop','Core')
@@ -129,6 +129,7 @@ PrivateData = @{
 # DefaultCommandPrefix = ''
 
 }
+
 
 
 
