@@ -28,7 +28,7 @@ namespace GreyCorbel.Logging
     /// </summary>
     public class AiLogger : IAiLogger
     {
-        private readonly IConfiguration _cfg;
+        //private readonly IConfiguration _cfg;
 
         private TelemetryClient _client;
         private System.Collections.Generic.Dictionary<string, string> _metadata;
@@ -42,22 +42,22 @@ namespace GreyCorbel.Logging
         /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/Ctor1/*'/>
         public AiLogger(IConfiguration configuration): this(configuration["InstrumentationKey"], configuration["Application"], configuration["Component"])
         {
-            _cfg = configuration;
+            //_cfg = configuration;
 
-            if(!string.IsNullOrWhiteSpace(_cfg["Module"]))
+            if(!string.IsNullOrWhiteSpace(configuration["Module"]))
             {
-                _metadata["Module"] = _cfg["Module"];
+                _metadata["Module"] = configuration["Module"];
                 _protectedMetadata.Add("Module");
 
-                _metricNamespace = $"{_cfg["Application"]}.{_cfg["Component"]}.{_cfg["Module"]}";
+                _metricNamespace = $"{configuration["Application"]}.{configuration["Component"]}.{configuration["Module"]}";
             }
 
-            if (!string.IsNullOrWhiteSpace(_cfg["Role"]))
-                _client.Context.Cloud.RoleName = _cfg["Role"];
+            if (!string.IsNullOrWhiteSpace(configuration["Role"]))
+                _client.Context.Cloud.RoleName = configuration["Role"];
             else
                 _client.Context.Cloud.RoleName = _metricNamespace;
-            if (!string.IsNullOrWhiteSpace(_cfg["Instance"]))
-                _client.Context.Cloud.RoleName = _cfg["Instance"];
+            if (!string.IsNullOrWhiteSpace(configuration["Instance"]))
+                _client.Context.Cloud.RoleName = configuration["Instance"];
         }
         /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/Ctor2/*'/>
         public AiLogger(string InstrumentationKey, string Application, string Component, string Module) : this(InstrumentationKey, Application, Component)
@@ -278,17 +278,20 @@ namespace GreyCorbel.Logging
         /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/WriteDependency/*'/>
         public void WriteDependency(string Target, string TypeName, string Name, string Data, DateTime Start, TimeSpan Duration, string ResultCode, bool Success = true)
         {
-            var dependencyData = new DependencyTelemetry();
-            foreach (string key in _metadata.Keys) { dependencyData.Properties[key] = _metadata[key]; }
-            dependencyData.Target = Target;
-            dependencyData.Type = TypeName;
-            dependencyData.Name = Name;
-            dependencyData.Data = Data;
-            dependencyData.Timestamp = Start;
-            dependencyData.Duration = Duration;
-            dependencyData.Success = Success;
+            var dependencyData = new DependencyTelemetry()
+            {
+                Target = Target,
+                Type = TypeName,
+                Name = Name,
+                Data = Data,
+                Timestamp = Start,
+                Duration = Duration,
+                Success = Success
+            };
             if (!string.IsNullOrWhiteSpace(ResultCode))
                 dependencyData.ResultCode = ResultCode;
+
+            foreach (string key in _metadata.Keys) { dependencyData.Properties[key] = _metadata[key]; }
 
             _client.TrackDependency(dependencyData);
         }
