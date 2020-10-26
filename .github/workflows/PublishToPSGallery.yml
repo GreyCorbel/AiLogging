@@ -36,10 +36,10 @@ jobs:
         write-host "Building in: $env:GITHUB_WORKSPACE\$Name"
         New-Item -Path  "$env:GITHUB_WORKSPACE" -Name $Name -ItemType Directory -Force | Out-Null
         New-Item -Path  "$env:GITHUB_WORKSPACE" -Name Assets -ItemType Directory -Force | Out-Null
-        Copy-Item -Path "$env:GITHUB_WORKSPACE\$Name`.psd1" -Destination "$Target\" -Force
-        Copy-Item -Path "$env:GITHUB_WORKSPACE\$Name`.psm1" -Destination "$Target\" -Force
-        Copy-Item -Path "$env:GITHUB_WORKSPACE\images" -Destination "$Target\" -Force -Recurse
-        Copy-Item -Path "$env:GITHUB_WORKSPACE\lib" -Destination "$Target\" -Force -Recurse
+        Copy-Item -Path "$env:GITHUB_WORKSPACE\Module\$Name`.psd1" -Destination "$Target\" -Force
+        Copy-Item -Path "$env:GITHUB_WORKSPACE\Module\$Name`.psm1" -Destination "$Target\" -Force
+        Copy-Item -Path "$env:GITHUB_WORKSPACE\Module\images" -Destination "$Target\" -Force -Recurse
+        Copy-Item -Path "$env:GITHUB_WORKSPACE\Module\lib" -Destination "$Target\" -Force -Recurse
         Copy-Item -Path "$env:GITHUB_WORKSPACE\LICENSE" -Destination "$Target\" -Force
 
       # Publish to PS Gallery

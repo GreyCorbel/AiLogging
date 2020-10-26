@@ -1,0 +1,55 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <LangVersion>Latest</LangVersion>
+    <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
+    <Configurations>Debug;Release</Configurations>
+    <NullableReferenceTypes>true</NullableReferenceTypes>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageId>GreyCorbel.Logging.AppInsights</PackageId>
+    <Authors>Jiri Formacek</Authors>
+    <Version>1.0.10</Version>
+    <Company>GreyCorbel Solutions</Company>
+    <Product></Product>
+    <Description></Description>
+    <PackageProjectUrl></PackageProjectUrl>
+    <PackageIcon></PackageIcon>
+    <PackageTags></PackageTags>
+    <PackageReleaseNotes></PackageReleaseNotes>
+    <IsPackable>true</IsPackable>
+    <RootNamespace>GreyCorbel.Logging</RootNamespace>
+  </PropertyGroup>
+  <PropertyGroup>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Copyright />
+    <AssemblyName>GreyCorbel.Logging.AppInsights</AssemblyName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DocumentationFile>.\GreyCorbel.Logging.AppInsights.xml</DocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.ApplicationInsights" Version="2.15.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="images\" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <PackageReference Include="Microsoft.Extensions.Configuration">
+      <Version>3.1.9</Version>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.1'">
+    <PackageReference Include="Microsoft.Extensions.Configuration">
+      <Version>3.1.9</Version>
+    </PackageReference>
+  </ItemGroup>
+
+</Project>
