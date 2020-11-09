@@ -6,10 +6,10 @@
     <Configurations>Debug;Release</Configurations>
     <NullableReferenceTypes>true</NullableReferenceTypes>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <PackageId>GreyCorbel.Logging.AppInsights</PackageId>
     <Authors>Jiri Formacek</Authors>
-    <Version>1.0.10</Version>
+    <Version>1.0.0.10</Version>
     <Company>GreyCorbel Solutions</Company>
     <Product></Product>
     <Description></Description>
@@ -51,5 +51,9 @@
       <Version>3.1.9</Version>
     </PackageReference>
   </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="DispatchToInnerBuilds">
+    <Exec Command="if exist C:\TFS\nuget.exe (&#xD;&#xA;        Echo &quot;building nuget package&#xD;&#xA;        C:\TFS\nuget.exe pack &quot;$(MSBuildProjectDirectory)\GreyCorbel.Logging.AppInsights.nuspec&quot; -OutputDirectory &quot;$(MSBuildProjectDirectory)Packages&quot; -Properties Configuration=$(ConfigurationName)&#xD;&#xA;        Echo Signing nuget package&#xD;&#xA;        C:\TFS\nuget.exe sign &quot;$(MSBuildProjectDirectory)Packages\*.nupkg&quot; -timestamper http://timestamp.digicert.com -CertificateSubject &quot;GreyCorbel s.r.o.&quot; -Overwrite&#xD;&#xA;        C:\TFS\nuget.exe sign &quot;$(MSBuildProjectDirectory)Packages\*.nupkg&quot; -timestamper http://timestamp.digicert.com -CertificateSubject &quot;GreyCorbel s.r.o.&quot; -Overwrite&#xD;&#xA;    )&#xD;&#xA;" />
+  </Target>
 
 </Project>

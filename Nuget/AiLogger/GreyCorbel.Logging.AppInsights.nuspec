@@ -1,44 +1,38 @@
 ﻿<?xml version="1.0"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
-	<metadata>
-        <id>GreyCorbel.Logging.AppInsights</id>
-        <version>$version$</version>
-        <title>Telemetry Standardization package</title>
-        <authors>Jiri Formacek, GreyCorbel Solutions</authors>
-        <owners>GreyCorbel Solutions</owners>
-        <license type="expression">MIT</license>
-        <projectUrl>https://github.com/GreyCorbel/AiLogging</projectUrl>
-        <icon>images\icon.png</icon>
-        <repository type="git" url="GreyCorbel" commit="$commit$"/>
-        <requireLicenseAcceptance>false</requireLicenseAcceptance>
-        <description>Microsoft Application Insights TelemetryClient wrapper that enforces logging standards. Provided as reference implementation for .NET Framework/Core based projects.</description>
-        <releaseNotes>Initial release</releaseNotes>
-        <copyright></copyright>
-        <tags>AppInsights Telemetry</tags>
-        <references>
-            <group targetFramework=".NETStandard2.1">
-            <reference file="GreyCorbel.Logging.AppInsights.dll" />
-            <reference file="GreyCorbel.Logging.AppInsights.xml" />
-            </group>
-            <group targetFramework=".NETStandard2.0">
-            <reference file="GreyCorbel.Logging.AppInsights.dll" />
-            <reference file="GreyCorbel.Logging.AppInsights.xml" />
-            </group>
-        </references>
-        <dependencies>
-	        <group targetFramework=".NETStandard2.1">
-		        <dependency id="Microsoft.ApplicationInsights" version="2.15.0" exclude="Build,Analyzers" />
-	        </group>
-	        <group targetFramework=".NETStandard2.0">
-		        <dependency id="Microsoft.ApplicationInsights" version="2.15.0" exclude="Build,Analyzers" />
-	        </group>
-        </dependencies>
-    </metadata>
-    <files>
+  <metadata>
+    <id>GreyCorbel.Logging.AppInsights</id>
+    <version>1.0.11</version>
+    <title>Telemetry Standardization package</title>
+    <authors>Jiri Formacek, GreyCorbel Solutions</authors>
+    <owners>GreyCorbel Solutions</owners>
+    <license type="expression">MIT</license>
+    <projectUrl>https://github.com/GreyCorbel/AiLogging</projectUrl>
+    <icon>images\icon.png</icon>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>
+      Microsoft Application Insights TelemetryClient wrapper that enforces logging standards.
+      Provided as reference implementation for .NET Framework/Core based projects.
+    </description>
+    <releaseNotes>Initial release</releaseNotes>
+    <copyright></copyright>
+    <tags>AppInsights Telemetry</tags>
+    <dependencies>
+      <group targetFramework=".NETStandard2.1">
+        <dependency id="Microsoft.ApplicationInsights" version="2.15.0" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.Extensions.Configuration" version="3.1.9" exclude="Build,Analyzers" />
+      </group>
+      <group targetFramework=".NETStandard2.0">
+        <dependency id="Microsoft.ApplicationInsights" version="2.15.0" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.Extensions.Configuration" version="3.1.9" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
     <file src=".\images\icon.png" target="images\" />
     <file src="bin\release\netstandard2.0\GreyCorbel.Logging.AppInsights.dll" target="lib\netstandard2.0" />
     <file src="bin\release\netstandard2.1\GreyCorbel.Logging.AppInsights.dll" target="lib\netstandard2.1" />
     <file src="bin\release\netstandard2.0\GreyCorbel.Logging.AppInsights.xml" target="lib\netstandard2.0" />
     <file src="bin\release\netstandard2.1\GreyCorbel.Logging.AppInsights.xml" target="lib\netstandard2.1" />
-    </files>
+  </files>
 </package>
