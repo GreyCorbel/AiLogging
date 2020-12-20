@@ -4,6 +4,7 @@ using System.Linq;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.Extensibility;
+using Microsoft.ApplicationInsights.Extensibility.PerfCounterCollector;
 using Microsoft.ApplicationInsights.Metrics;
 using Microsoft.Extensions.Configuration;
 
@@ -42,8 +43,6 @@ namespace GreyCorbel.Logging
         /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/Ctor1/*'/>
         public AiLogger(IConfiguration configuration): this(configuration["InstrumentationKey"], configuration["Application"], configuration["Component"])
         {
-            //_cfg = configuration;
-
             if(!string.IsNullOrWhiteSpace(configuration["Module"]))
             {
                 _metadata["Module"] = configuration["Module"];
@@ -58,7 +57,8 @@ namespace GreyCorbel.Logging
                 _client.Context.Cloud.RoleName = _metricNamespace;
             if (!string.IsNullOrWhiteSpace(configuration["Instance"]))
                 _client.Context.Cloud.RoleName = configuration["Instance"];
-        }
+
+         }
         /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/Ctor2/*'/>
         public AiLogger(string InstrumentationKey, string Application, string Component, string Module) : this(InstrumentationKey, Application, Component)
         {
