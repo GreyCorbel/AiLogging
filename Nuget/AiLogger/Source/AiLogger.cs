@@ -59,17 +59,20 @@ namespace GreyCorbel.Logging
         }
 
         /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/Ctor1/*'/>
-        public AiLogger(IConfiguration configuration): this(configuration["InstrumentationKey"], configuration["Application"], configuration["Component"])
+        public AiLogger(IConfiguration Configuration): this(Configuration["InstrumentationKey"], Configuration["Application"], Configuration["Component"])
         {
-            AddMetadataInternal("Module", configuration["Module"]);
-            _metricNamespace = $"{configuration["Application"]}.{configuration["Component"]}.{configuration["Module"]}";
-
-            if (!string.IsNullOrWhiteSpace(configuration["Role"]))
-                _client.Context.Cloud.RoleName = configuration["Role"];
+            if (null != Configuration["Module"])
+            {
+                //module is optional; we should not fail if not present
+                AddMetadataInternal("Module", Configuration["Module"]);
+                _metricNamespace = $"{Configuration["Application"]}.{Configuration["Component"]}.{Configuration["Module"]}";
+            }
+            if (!string.IsNullOrWhiteSpace(Configuration["Role"]))
+                _client.Context.Cloud.RoleName = Configuration["Role"];
             else
                 _client.Context.Cloud.RoleName = _metricNamespace;
-            if (!string.IsNullOrWhiteSpace(configuration["Instance"]))
-                _client.Context.Cloud.RoleName = configuration["Instance"];
+            if (!string.IsNullOrWhiteSpace(Configuration["Instance"]))
+                _client.Context.Cloud.RoleName = Configuration["Instance"];
 
          }
         /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/Ctor2/*'/>
@@ -105,6 +108,24 @@ namespace GreyCorbel.Logging
             _client.Context.Cloud.RoleName = Role;
             _client.Context.Cloud.RoleInstance = Instance;
         }
+
+        /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/Ctor8/*'/>
+        public AiLogger(TelemetryConfiguration TelemetryConfig, IConfiguration Configuration): this(TelemetryConfig, Configuration["Application"], Configuration["Component"])
+        {
+            if (null != Configuration["Module"])
+            {
+                //module is optional; we should not fail if not present
+                AddMetadataInternal("Module", Configuration["Module"]);
+                _metricNamespace = $"{Configuration["Application"]}.{Configuration["Component"]}.{Configuration["Module"]}";
+            }
+            if (!string.IsNullOrWhiteSpace(Configuration["Role"]))
+                _client.Context.Cloud.RoleName = Configuration["Role"];
+            else
+                _client.Context.Cloud.RoleName = _metricNamespace;
+            if (!string.IsNullOrWhiteSpace(Configuration["Instance"]))
+                _client.Context.Cloud.RoleName = Configuration["Instance"];
+        }
+
         /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/Ctor5/*'/>
         public AiLogger(TelemetryConfiguration Config, string Application, string Component)
         {
@@ -112,15 +133,15 @@ namespace GreyCorbel.Logging
             _client = new TelemetryClient(Config);
             AddMetadataInternal("Application", Application);
             AddMetadataInternal("Component", Component);
-
         }
+
         /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/Ctor6/*'/>
         public AiLogger(TelemetryConfiguration Config, string Application, string Component, string Module):this(Config, Application, Component)
         {
             AddMetadataInternal("Module", Module);
             _metricNamespace = $"{Application}.{Component}.{Module}";
-
         }
+
         /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/Ctor7/*'/>
         public AiLogger(TelemetryConfiguration Config, string Application, string Component, string Role, string Instance) : this(Config, Application, Component)
         {
@@ -131,6 +152,7 @@ namespace GreyCorbel.Logging
             _client.Context.Cloud.RoleName = Role;
             _client.Context.Cloud.RoleInstance = Instance;
         }
+
         /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/AddMetadata/*'/>
         public void AddMetadata(string Name, string Value)
         {
@@ -138,11 +160,12 @@ namespace GreyCorbel.Logging
             {
                 if (_protectedMetadata.Contains(Name, StringComparer.CurrentCultureIgnoreCase))
                 {
-                    throw new ArgumentException($"Metadata {Name} is protected and cannot be rewritten");
+                    throw new ArgumentException(Name, "Metadata is protected and cannot be rewritten");
                 }
                 _metadata[Name] = Value;
             }
         }
+
         /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/RemoveMetadata/*'/>
         public void RemoveMetadata(string Name)
         {
@@ -150,11 +173,12 @@ namespace GreyCorbel.Logging
             {
                 if (_protectedMetadata.Contains(Name, StringComparer.CurrentCultureIgnoreCase))
                 {
-                    throw new ArgumentException($"Metadata {Name} is protected and cannot be removed");
+                    throw new ArgumentException(Name, "Metadata is protected and cannot be removed");
                 }
                 _metadata.Remove(Name);
             }
         }
+
         /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/ResetMetadata/*'/>
         public void ResetMetadata()
         {
@@ -208,12 +232,12 @@ namespace GreyCorbel.Logging
         {
             string[] parts = traceParentHeader.Split('-');
             if (parts.Length != 4)
-                throw new ArgumentException($"Invalid number of parts in {nameof(traceParentHeader)}");
+                throw new ArgumentException(nameof(traceParentHeader), "Argument has invalid number of parts");
 
             if (!int.TryParse(parts[0], System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out _traceParentHeaderVersion))
-                throw new ArgumentException($"Invalid version part in {nameof(traceParentHeader)}");
+                throw new ArgumentException(nameof(traceParentHeader), "Argument has invalid version part");
             if (!int.TryParse(parts[3], System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out _traceParentHeaderFlags))
-                throw new ArgumentException($"Invalid flags part in {nameof(traceParentHeader)}");
+                throw new ArgumentException(nameof(traceParentHeader), "Argument has invalid flags part");
 
             _client.Context.Operation.Id = parts[1]; ;
             _client.Context.Operation.ParentId = parts[2];
@@ -225,6 +249,7 @@ namespace GreyCorbel.Logging
         {
             _metadata["TraceState"] = traceStateHeader;
         }
+
         /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/ClearOperationContext/*'/>
         public void ClearOperationContext()
         {
@@ -242,6 +267,7 @@ namespace GreyCorbel.Logging
                     _metadata.Remove("TraceState");
             }
         }
+
         /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/SetUserContext/*'/>
         public void SetUserContext(string Id, string AuthenticatedId = null, string AccountId = null, string UserAgent = null)
         {
@@ -301,6 +327,7 @@ namespace GreyCorbel.Logging
                 return GetMetric(Name);
             return _client.GetMetric(new MetricIdentifier($"{_metricNamespace}.{NamespaceSuffix}", Name));
         }
+
         /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/WriteDependency/*'/>
         public void WriteDependency(string Target, string TypeName, string Name, string Data, DateTime Start, TimeSpan Duration, string ResultCode, bool Success = true)
         {
