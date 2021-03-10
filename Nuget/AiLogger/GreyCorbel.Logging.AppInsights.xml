@@ -4,6 +4,34 @@
         <name>GreyCorbel.Logging.AppInsights</name>
     </assembly>
     <members>
+        <member name="T:GreyCorbel.Logging.Extensions.AiLoggerServiceExtensiosn">
+            <summary>
+            Implements DI support
+            </summary>
+        </member>
+        <member name="M:GreyCorbel.Logging.Extensions.AiLoggerServiceExtensiosn.AddAiLogger(Microsoft.Extensions.DependencyInjection.IServiceCollection,Microsoft.Extensions.Configuration.IConfiguration)">
+            <summary>
+      Adds AiLogger initialized from configuration provider to services collection as singleton service.
+    </summary><param name="serviceCollection">Services</param><param name="configuration">Key/Value pair configuration provider. Must contain keys InstrumentationKey, Application and Component</param><returns>Instance of IServiceCollection</returns>
+        </member>
+        <member name="M:GreyCorbel.Logging.Extensions.AiLoggerServiceExtensiosn.AddAiLogger(Microsoft.Extensions.DependencyInjection.IServiceCollection,System.String,System.String,System.String,System.String)">
+            <summary>
+      Adds AiLogger initialized from parameters as singleton service. Used for apps consisting of modules that consist of components.
+    </summary><param name="serviceCollection">Services</param><param name="InstrumentationKey">Instumentation key for chosen AppInsights instance</param><param name="Application">Name of the application</param><param name="Module">Name of Application Module</param><param name="Component">Name of Application Module Component</param><returns>Instance of IServiceCollection</returns>
+        </member>
+        <member name="M:GreyCorbel.Logging.Extensions.AiLoggerServiceExtensiosn.AddAiLogger(Microsoft.Extensions.DependencyInjection.IServiceCollection,System.String,System.String,System.String)">
+            <summary>
+      Adds AiLogger initialized from parameters as singleton service. Used for apps consisting of components without modules.
+    </summary><param name="serviceCollection">Services</param><param name="InstrumentationKey">Instumentation key for chosen AppInsights instance</param><param name="Application">Name of the application</param><param name="Component">Name of Application Component</param><returns>Instance of IServiceCollection</returns>
+        </member>
+        <member name="M:GreyCorbel.Logging.Extensions.AiLoggerServiceExtensiosn.AddAiLogger(Microsoft.Extensions.DependencyInjection.IServiceCollection,System.String,System.String,System.String,System.String,System.String)">
+            <!-- No matching elements were found for the following include tag --><include file="./Docs/AiLoggerServiceCollectionExtensions.xml" path="SCE/AILogger4/*" />
+        </member>
+        <member name="M:GreyCorbel.Logging.Extensions.AiLoggerServiceExtensiosn.AddAiLoggerConfiguration(Microsoft.Extensions.DependencyInjection.IServiceCollection,Microsoft.ApplicationInsights.Extensibility.TelemetryConfiguration)">
+            <summary>
+      Adds TelemetryClientConfiguration to services collection as singleton service. Helps with scenarios where you want to use preconfigured configuration object by multiple TelemetryClients.
+    </summary><param name="serviceCollection">Services</param><param name="telemetryConfiguration">Preconfigured configuration object created by caller.</param><returns>Instance of IServiceCollection</returns>
+        </member>
         <member name="T:GreyCorbel.Logging.IAiLogger">
             <summary>
             Interface for AppInsights logging helper that follows defined logging standards, namely:
@@ -146,17 +174,32 @@
         <member name="M:GreyCorbel.Logging.AiLogger.#ctor(System.String,System.String,System.String,System.String)">
             <summary>
       Creates instance of AiLogger with given instrumentation key and names of Application, Component and Module
-     </summary><param name="InstrumentationKey">Instrumentation key of related Application Insights instance to send logs to</param><param name="Application">Name of applicaation</param><param name="Component">Name of component</param><param name="Module">Name of module</param>
+     </summary><param name="InstrumentationKey">Instrumentation key of related Application Insights instance to send logs to</param><param name="Application">Name of application</param><param name="Component">Name of component</param><param name="Module">Name of module</param>
         </member>
         <member name="M:GreyCorbel.Logging.AiLogger.#ctor(System.String,System.String,System.String)">
             <summary>
       Creates instance of AiLogger with given instrumentation key and names of Application and Component
-     </summary><param name="InstrumentationKey">Instrumentation key of related Application Insights instance to send logs to</param><param name="Application">Name of applicaation</param><param name="Component">Name of component</param>
+     </summary><param name="InstrumentationKey">Instrumentation key of related Application Insights instance to send logs to</param><param name="Application">Name of application</param><param name="Component">Name of component</param>
         </member>
         <member name="M:GreyCorbel.Logging.AiLogger.#ctor(System.String,System.String,System.String,System.String,System.String)">
             <summary>
       Creates instance of AiLogger with given instrumentation key and names of Application and Component, and identifiers for cloud role and instance
-    </summary><param name="InstrumentationKey">Instrumentation key of related Application Insights instance to send logs to</param><param name="Application">Name of applicaation</param><param name="Component">Name of component</param><param name="Role">Name of the role (e.g. computername the code is running on)</param><param name="Instance">Identifier of the instance (e.g. in case that multiple instances of component are hosted on single computer)</param>
+    </summary><param name="InstrumentationKey">Instrumentation key of related Application Insights instance to send logs to</param><param name="Application">Name of application</param><param name="Component">Name of component</param><param name="Role">Name of the role (e.g. computername the code is running on)</param><param name="Instance">Identifier of the instance (e.g. in case that multiple instances of component are hosted on single computer)</param>
+        </member>
+        <member name="M:GreyCorbel.Logging.AiLogger.#ctor(Microsoft.ApplicationInsights.Extensibility.TelemetryConfiguration,System.String,System.String)">
+            <summary>
+      Creates instance of AiLogger with existing configuration object and names of Application and Component
+    </summary><param name="Config">Instance of TelemetryConfiguration</param><param name="Application">Name of application</param><param name="Component">Name of component</param>
+        </member>
+        <member name="M:GreyCorbel.Logging.AiLogger.#ctor(Microsoft.ApplicationInsights.Extensibility.TelemetryConfiguration,System.String,System.String,System.String)">
+            <summary>
+      Creates instance of AiLogger with existing configuration object and names of Application, Component and Module
+    </summary><param name="Config">Instance of TelemetryConfiguration</param><param name="Application">Name of application</param><param name="Component">Name of component</param><param name="Module">Name of module</param>
+        </member>
+        <member name="M:GreyCorbel.Logging.AiLogger.#ctor(Microsoft.ApplicationInsights.Extensibility.TelemetryConfiguration,System.String,System.String,System.String,System.String)">
+            <summary>
+      Creates instance of AiLogger with existing configuration object and names of Application and Component, and identifiers for cloud role and instance
+    </summary><param name="Config">Instance of TelemetryConfiguration</param><param name="Application">Name of application</param><param name="Component">Name of component</param><param name="Role">Name of the role (e.g. computername the code is running on)</param><param name="Instance">Identifier of the instance (e.g. in case that multiple instances of component are hosted on single computer)</param>
         </member>
         <member name="M:GreyCorbel.Logging.AiLogger.AddMetadata(System.String,System.String)">
             <summary>
@@ -251,6 +294,16 @@
             <summary>
       Writes information about call to external service
     </summary><param name="Target">Name of endpoint (hostname or host identifier for server being called)</param><param name="TypeName">Name of the dependency type, such as FTP, SQL or HTTP</param><param name="Name">Name of the dependency, such as FileDownload, StoredProcedureCall</param><param name="Data">Dependency details, such as parameters of request</param><param name="Start">When started</param><param name="Duration">Duration of call</param><param name="ResultCode">Result code of operation</param><param name="Success">Whether or not call was successful</param>
+        </member>
+        <member name="M:GreyCorbel.Logging.AiLogger.Dispose(System.Boolean)">
+            <summary>
+      Releases internal TelemetryConfiguration object
+    </summary><param name="disposing">Whether to dispose resources</param>
+        </member>
+        <member name="M:GreyCorbel.Logging.AiLogger.Dispose">
+            <summary>
+       Releases internal TelemetryConfiguration object
+     </summary>
         </member>
     </members>
 </doc>

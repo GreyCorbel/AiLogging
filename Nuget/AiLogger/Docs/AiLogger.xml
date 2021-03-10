@@ -13,7 +13,7 @@
       Creates instance of AiLogger with given instrumentation key and names of Application, Component and Module
      </summary>
     <param name="InstrumentationKey">Instrumentation key of related Application Insights instance to send logs to</param>
-    <param name="Application">Name of applicaation</param>
+    <param name="Application">Name of application</param>
     <param name="Component">Name of component</param>
     <param name="Module">Name of module</param>
   </Ctor2>  
@@ -22,7 +22,7 @@
       Creates instance of AiLogger with given instrumentation key and names of Application and Component
      </summary>
     <param name="InstrumentationKey">Instrumentation key of related Application Insights instance to send logs to</param>
-    <param name="Application">Name of applicaation</param>
+    <param name="Application">Name of application</param>
     <param name="Component">Name of component</param>
   </Ctor3>  
   <Ctor4>
@@ -30,11 +30,38 @@
       Creates instance of AiLogger with given instrumentation key and names of Application and Component, and identifiers for cloud role and instance
     </summary>
      <param name="InstrumentationKey">Instrumentation key of related Application Insights instance to send logs to</param>
-     <param name="Application">Name of applicaation</param>
+     <param name="Application">Name of application</param>
      <param name="Component">Name of component</param>
      <param name="Role">Name of the role (e.g. computername the code is running on)</param>
      <param name="Instance">Identifier of the instance (e.g. in case that multiple instances of component are hosted on single computer)</param>
   </Ctor4>
+  <Ctor5>
+    <summary>
+      Creates instance of AiLogger with existing configuration object and names of Application and Component
+    </summary>
+    <param name="Config">Instance of TelemetryConfiguration</param>
+    <param name="Application">Name of application</param>
+    <param name="Component">Name of component</param>
+  </Ctor5>
+  <Ctor6>
+    <summary>
+      Creates instance of AiLogger with existing configuration object and names of Application, Component and Module
+    </summary>
+    <param name="Config">Instance of TelemetryConfiguration</param>
+    <param name="Application">Name of application</param>
+    <param name="Component">Name of component</param>
+    <param name="Module">Name of module</param>
+  </Ctor6>
+  <Ctor7>
+    <summary>
+      Creates instance of AiLogger with existing configuration object and names of Application and Component, and identifiers for cloud role and instance
+    </summary>
+    <param name="Config">Instance of TelemetryConfiguration</param>
+    <param name="Application">Name of application</param>
+    <param name="Component">Name of component</param>
+    <param name="Role">Name of the role (e.g. computername the code is running on)</param>
+    <param name="Instance">Identifier of the instance (e.g. in case that multiple instances of component are hosted on single computer)</param>
+  </Ctor7>
   <AddMetadata>
      <summary>
        Adds additional custom dimension to be sent with logged events. Note that Application, Component (and Module) cannot be added.
@@ -169,4 +196,15 @@
      <param name="ResultCode">Result code of operation</param>
      <param name="Success">Whether or not call was successful</param>
   </WriteDependency>
+  <Dispose1>
+     <summary>
+      Releases internal TelemetryConfiguration object
+    </summary>
+     <param name="disposing">Whether to dispose resources</param>
+  </Dispose1>
+  <Dispose2>
+     <summary>
+       Releases internal TelemetryConfiguration object
+     </summary>
+  </Dispose2>
 </AiLogger>

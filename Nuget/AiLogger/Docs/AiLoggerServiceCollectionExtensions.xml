@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<SCE>
+  <AILogger1>
+    <summary>
+      Adds AiLogger initialized from configuration provider to services collection as singleton service.
+    </summary>
+    <param name="serviceCollection">Services</param>
+    <param name="configuration">Key/Value pair configuration provider. Must contain keys InstrumentationKey, Application and Component</param>
+    <returns>Instance of IServiceCollection</returns>
+  </AILogger1>
+  <AILogger2>
+    <summary>
+      Adds AiLogger initialized from parameters as singleton service. Used for apps consisting of modules that consist of components.
+    </summary>
+    <param name="serviceCollection">Services</param>
+    <param name="InstrumentationKey">Instumentation key for chosen AppInsights instance</param>
+    <param name="Application">Name of the application</param>
+    <param name="Module">Name of Application Module</param>
+    <param name="Component">Name of Application Module Component</param>
+    <returns>Instance of IServiceCollection</returns>
+  </AILogger2>
+  <AILogger3>
+    <summary>
+      Adds AiLogger initialized from parameters as singleton service. Used for apps consisting of components without modules.
+    </summary>
+    <param name="serviceCollection">Services</param>
+    <param name="InstrumentationKey">Instumentation key for chosen AppInsights instance</param>
+    <param name="Application">Name of the application</param>
+    <param name="Component">Name of Application Component</param>
+    <returns>Instance of IServiceCollection</returns>
+  </AILogger3>
+  <AiLogger4>
+    <summary>
+      Adds AiLogger initialized from parameters as singleton service. Used for apps consisting of components without modules, that run in multiple instances on 1 or more roles.
+    </summary>
+    <param name="serviceCollection">Services</param>
+    <param name="InstrumentationKey">Instumentation key for chosen AppInsights instance</param>
+    <param name="Application">Name of the application</param>
+    <param name="Component">Name of Application Component</param>
+    <param name="Role">Name of role</param>
+    <param name="Instance">Identifier of instance</param>
+    <returns>Instance of IServiceCollection</returns>
+  </AiLogger4>
+  <AiLoggerConfig1>
+     <summary>
+      Adds TelemetryClientConfiguration to services collection as singleton service. Helps with scenarios where you want to use preconfigured configuration object by multiple TelemetryClients.
+    </summary>
+     <param name="serviceCollection">Services</param>
+     <param name="telemetryConfiguration">Preconfigured configuration object created by caller.</param>
+    <returns>Instance of IServiceCollection</returns>
+  </AiLoggerConfig1>
+</SCE>

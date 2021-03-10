@@ -27,12 +27,15 @@ namespace GreyCorbel.Logging
     /// </item>
     /// </list>
     /// </summary>
-    public class AiLogger : IAiLogger
+    public class AiLogger : IAiLogger, IDisposable
     {
         //private readonly IConfiguration _cfg;
 
         private TelemetryClient _client;
-        private System.Collections.Generic.Dictionary<string, string> _metadata;
+        private TelemetryConfiguration _clientConfig = null;
+        private bool _disposed=false;
+
+        private System.Collections.Generic.Dictionary<string, string> _metadata = new Dictionary<string, string>();
         private List<string> _protectedMetadata = new List<string>();
         private string _metricNamespace;
 
@@ -40,16 +43,26 @@ namespace GreyCorbel.Logging
         int _traceParentHeaderVersion;
         int _traceParentHeaderFlags;
 
+        private void AddMetadataInternal(string name, string value, bool protectedMetadata = true)
+        {
+            if(string.IsNullOrWhiteSpace(name))
+                throw new ArgumentException("Metadata name cannot be null, empty string or whitespace");
+
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                _metadata[name] = value;
+                if (protectedMetadata)
+                    _protectedMetadata.Add(name);
+            }
+            else
+                throw new ArgumentNullException(name, "Metadata value cannot be null, empty string or whitespace");
+        }
+
         /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/Ctor1/*'/>
         public AiLogger(IConfiguration configuration): this(configuration["InstrumentationKey"], configuration["Application"], configuration["Component"])
         {
-            if(!string.IsNullOrWhiteSpace(configuration["Module"]))
-            {
-                _metadata["Module"] = configuration["Module"];
-                _protectedMetadata.Add("Module");
-
-                _metricNamespace = $"{configuration["Application"]}.{configuration["Component"]}.{configuration["Module"]}";
-            }
+            AddMetadataInternal("Module", configuration["Module"]);
+            _metricNamespace = $"{configuration["Application"]}.{configuration["Component"]}.{configuration["Module"]}";
 
             if (!string.IsNullOrWhiteSpace(configuration["Role"]))
                 _client.Context.Cloud.RoleName = configuration["Role"];
@@ -62,12 +75,7 @@ namespace GreyCorbel.Logging
         /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/Ctor2/*'/>
         public AiLogger(string InstrumentationKey, string Application, string Component, string Module) : this(InstrumentationKey, Application, Component)
         {
-            #region ArgsValidation
-            _ = Module ?? throw new ArgumentNullException(nameof(Module));
-            #endregion
-
-            _metadata["Module"] = Module;
-            _protectedMetadata.Add("Module");
+            AddMetadataInternal("Module", Module);
 
             _metricNamespace = $"{Application}.{Component}.{Module}";
         }
@@ -76,20 +84,13 @@ namespace GreyCorbel.Logging
         {
             #region ArgsValidation
             _ = InstrumentationKey ?? throw new ArgumentNullException(nameof(InstrumentationKey));
-            _ = Application ?? throw new ArgumentNullException(nameof(Application));
-            _ = Component ?? throw new ArgumentNullException(nameof(Component));
             #endregion
 
-            TelemetryConfiguration cfg = new TelemetryConfiguration(InstrumentationKey);
-            _client = new TelemetryClient(cfg);
+            _clientConfig = new TelemetryConfiguration(InstrumentationKey);
+            _client = new TelemetryClient(_clientConfig);
 
-            _metadata = new Dictionary<string, string>
-            {
-                ["Application"] = Application,
-                ["Component"] = Component
-            };
-            _protectedMetadata.Add("Application");
-            _protectedMetadata.Add("Component");
+            AddMetadataInternal("Application", Application);
+            AddMetadataInternal("Component", Component);
 
             _metricNamespace = $"{Application}.{Component}";
         }
@@ -104,7 +105,32 @@ namespace GreyCorbel.Logging
             _client.Context.Cloud.RoleName = Role;
             _client.Context.Cloud.RoleInstance = Instance;
         }
+        /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/Ctor5/*'/>
+        public AiLogger(TelemetryConfiguration Config, string Application, string Component)
+        {
+            //we do not keep telemetryClientConfiguration instance in this case
+            _client = new TelemetryClient(Config);
+            AddMetadataInternal("Application", Application);
+            AddMetadataInternal("Component", Component);
 
+        }
+        /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/Ctor6/*'/>
+        public AiLogger(TelemetryConfiguration Config, string Application, string Component, string Module):this(Config, Application, Component)
+        {
+            AddMetadataInternal("Module", Module);
+            _metricNamespace = $"{Application}.{Component}.{Module}";
+
+        }
+        /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/Ctor7/*'/>
+        public AiLogger(TelemetryConfiguration Config, string Application, string Component, string Role, string Instance) : this(Config, Application, Component)
+        {
+            #region ArgsValidation
+            _ = Role ?? throw new ArgumentNullException(nameof(Role));
+            _ = Instance ?? throw new ArgumentNullException(nameof(Instance));
+            #endregion
+            _client.Context.Cloud.RoleName = Role;
+            _client.Context.Cloud.RoleInstance = Instance;
+        }
         /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/AddMetadata/*'/>
         public void AddMetadata(string Name, string Value)
         {
@@ -294,6 +320,30 @@ namespace GreyCorbel.Logging
             foreach (string key in _metadata.Keys) { dependencyData.Properties[key] = _metadata[key]; }
 
             _client.TrackDependency(dependencyData);
+        }
+
+        /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/Dispose1/*'/>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    if(null!=_clientConfig)
+                    {
+                        _clientConfig.Dispose();
+                        _clientConfig = null;
+                    }
+                }
+                _disposed = true;
+            }
+        }
+
+        /// <include file='..\\Docs\AiLogger.xml' path='AiLogger/Dispose2/*'/>
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }
