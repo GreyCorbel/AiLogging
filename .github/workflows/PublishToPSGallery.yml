@@ -1,9 +1,4 @@
-# This is a basic workflow to help you get started with Actions
-
-name: CI
-
-# Controls when the action will run. Triggers the workflow on push or pull request
-# events but only for the main branch
+name: Publish-AiLogger
 on:
   push:
     branches:
@@ -12,67 +7,83 @@ on:
       - '**'
     tags:
       - 'v*'
-
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+  workflow_dispatch:
+   inputs:
+      publish:
+        type: boolean
+        description: 'Publish to powershell gallery'     
+        required: false
+        default: false
 jobs:
-  # This workflow contains a single job called "build"
+  # This workflow contains a single job called "publishToGallery"
   publishToGallery:
     # The type of runner that the job will run on
     runs-on: windows-latest
+    env: 
+      MODULE_NAME: AiLogging
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
     - name: Checkout
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       uses: actions/checkout@v2
-      #copy files
+
     - name: Build
       shell: pwsh
       run: |
-        $Name = 'AiLogging'
-        $Target = "$env:GITHUB_WORKSPACE\$Name"
-        dir "$env:GITHUB_WORKSPACE" -recurse
-        write-host "Building in: $env:GITHUB_WORKSPACE\$Name"
-        New-Item -Path  "$env:GITHUB_WORKSPACE" -Name $Name -ItemType Directory -Force | Out-Null
-        New-Item -Path  "$env:GITHUB_WORKSPACE" -Name Assets -ItemType Directory -Force | Out-Null
-        Copy-Item -Path "$env:GITHUB_WORKSPACE\Module\$Name`.psd1" -Destination "$Target\" -Force
-        Copy-Item -Path "$env:GITHUB_WORKSPACE\Module\$Name`.psm1" -Destination "$Target\" -Force
-        Copy-Item -Path "$env:GITHUB_WORKSPACE\Module\images" -Destination "$Target\" -Force -Recurse
-        Copy-Item -Path "$env:GITHUB_WORKSPACE\Module\lib" -Destination "$Target\" -Force -Recurse
-        Copy-Item -Path "$env:GITHUB_WORKSPACE\LICENSE" -Destination "$Target\" -Force
+        $moduleName = $env:MODULE_NAME
+        Copy-Item -Path "$env:GITHUB_WORKSPACE\LICENSE" -Destination "$env:GITHUB_WORKSPACE\Module\$moduleName\LICENSE.txt" -Force
+        "Building module"
+        &"$env:GITHUB_WORKSPACE\Workflow\BuildModule.ps1" -RootPath "$env:GITHUB_WORKSPACE" -ModuleName $moduleName
 
-      # Publish to PS Gallery
+    - name: Install AzureSignTool
+      shell: pwsh
+      run: |
+        dotnet tool install --global AzureSignTool
+
+    - name: Sign files
+      shell: pwsh
+      run: |
+        $files = Get-ChildItem "$env:GITHUB_WORKSPACE\Module" -File -Recurse -Include *.ps1, *.ps1xml, *.psd1, *.psm1, *.pssc, *.psrc, *.cdxml
+        try {
+            foreach ($file in $files) {
+                azuresigntool sign `
+                    -kvu ${{ vars.CODESIGNING_KEYVAULTURI }} `
+                    -kvi ${{ vars.TENANTINTEGRATION_CLIENTID }} `
+                    -kvt ${{ vars.TENANTINTEGRATION_TENANTID }} `
+                    -kvs ${{ secrets.TENANTINTEGRATION_CLIENTSECRET }} `
+                    -kvc ${{ vars.CODESIGNING_CERTNAME }} `
+                    -tr 'http://timestamp.digicert.com' `
+                    -v "$($file.FullName)" 
+            }
+        }
+        catch {
+            Write-Host "Error: $($_.Exception)"
+            throw
+        }
+        Write-Host "Signed files summary:"
+        Get-AuthenticodeSignature -FilePath $files
+
     - name: Publish
+      #Publish to PS Gallery
+      if: ${{ (github.event_name != 'workflow_dispatch') || github.event.inputs.publish }}
       shell: pwsh
       env:
-        SECRET: ${{ secrets.PSGallery_APIKey }}
+        SECRET: ${{ secrets.GC_PSGALLERY_APIKEY }}
       run: |
-        $Name = 'AiLogging'
-        $Target = "$env:GITHUB_WORKSPACE\$Name"
-        write-host "Publishing from: $Target"
-        Get-Item -Path env:* | Out-String | Write-host
+        $moduleName = $env:MODULE_NAME
+        write-host "Publishing from: $env:GITHUB_WORKSPACE\Module\$moduleName"
         try
         {
-          if($null -ne $target)
-          {
-            Publish-Module -Path $target -NuGetApiKey "$env:SECRET"
-          }
+          #setup PSModulePath
+          $env:PSModulePath = "$env:PSModulePath;$env:GITHUB_WORKSPACE\Module"
+          "PSModulePath: $env:PSModulePath"
+
+          Publish-PSResource -Path "$env:GITHUB_WORKSPACE\Module\$moduleName" -Repository PSGallery -APIKey "$env:SECRET"
+          #Publish-Module -Path "$env:GITHUB_WORKSPACE\Module\$moduleName" -NuGetApiKey "$env:SECRET"
         }
         catch
         {
           Write-Host "Error: $($_.Exception)"
           throw
         }
-      
-      #Create a release
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions automatically
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        draft: false
-        prerelease: false
