@@ -74,7 +74,7 @@ function Write-AiDependency
                 $dependencyData.Metrics[$Key] = $Metrics[$key]
             }
         }
-
+        Write-Verbose "Writing dependency: Name = $Name, Type = $DependencyType, Start = $start, Duration = $Duration, Success = $Success,  Target = $Target, Data = $Data"
         $Connection.TrackDependency($dependencyData)
     }
 }

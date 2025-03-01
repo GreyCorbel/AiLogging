@@ -1,5 +1,11 @@
 function Connect-AiLogger
 {
+    <#
+    .SYNOPSIS
+        Creates connection to Application Insights and sets up metadata for all logs sent with this connection
+    .DESCRIPTION
+        Creates connection to Application Insights and sets up metadata for all logs sent with this connection
+    #>
     param
     (
         [Parameter(Mandatory)]
@@ -37,7 +43,8 @@ function Connect-AiLogger
     }
     process
     {
-        add-type -AssemblyName Microsoft.ApplicationInsights
+        if($null -ne $script:LastCreatedAiLogger) {$script.$script:LastCreatedAiLogger.Dispose()}
+
         $config = [Microsoft.ApplicationInsights.Extensibility.TelemetryConfiguration]::CreateDefault()
         $config.ConnectionString = $ConnectionString
         #setup base metadata
@@ -59,6 +66,7 @@ function Connect-AiLogger
             $client.Context.Cloud.RoleInstance = $Instance
         }
         $script:LastCreatedAiLogger = $client
+        Write-Verbose ( ($ConnectionString.Split(';') | Where-Object{$_ -notlike 'InstrumentationKey=*'}) -join ';')
         $client
     }
 }

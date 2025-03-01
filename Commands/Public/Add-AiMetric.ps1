@@ -1,13 +1,13 @@
 function Add-AiMetric {
     <#
     .SYNOPSIS
-        Registers additional metadata to be sent with all telemetry produced after registered - until removed by call of Remove-AiMetadata or Reset-AiMetadata
+        Adds new metric to provided metrics collection
     #>
     [CmdletBinding()]
     param (
         [Parameter(Mandatory,ValueFromPipeline)]
         [System.Collections.Generic.Dictionary[String,Double]]
-            #Metadata object created by New-AiMetric
+            #Metrics collection created by New-AiMetric
         $Metrics,
 
         [Parameter(Mandatory)]
@@ -20,11 +20,22 @@ function Add-AiMetric {
         [string]
             #Value of metadata
         $Value,
-        [switch]$PassThrough
+        [switch]
+            #allows rewrite of already present metrics
+        $Force,
+        [switch]
+            #causes input object to be passed to output, enabling chaining
+        $PassThrough
     )
     
     process {
-        $Metrics.Add($Name, $Value) | Out-Null
+        if(-not $Metrics.TryAdd($Name, $Value)) {
+            if($Force) {
+                $Metrics[$Name] = $Value
+            } else {
+                Write-Warning "Metric with name $Name already exists. Use -Force to overwrite"
+            }
+        }
         if($PassThrough) {
             $Metrics
         }

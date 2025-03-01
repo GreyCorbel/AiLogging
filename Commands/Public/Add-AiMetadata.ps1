@@ -1,7 +1,7 @@
 function Add-AiMetadata {
     <#
     .SYNOPSIS
-        Registers additional metadata to be sent with all telemetry produced after registered - until removed by call of Remove-AiMetadata or Reset-AiMetadata
+        Adds new metadata to provided metadata collection
     #>
     [CmdletBinding()]
     param (
@@ -20,11 +20,22 @@ function Add-AiMetadata {
         [string]
             #Value of metadata
         $Value,
-        [switch]$PassThrough
+        [switch]
+            #allows rewrite of already present metadata
+        $Force,
+        [switch]
+            #causes input object to be passed to output, enabling chaining
+        $PassThrough
     )
     
     process {
-        $metadata.Add($Name, $Value) | Out-Null
+        if(-not $metadata.TryAdd($Name, $Value) ) {
+            if($Force) {
+                $metadata[$Name] = $Value
+            } else {
+                Write-Warning "Metadata with name $Name already exists. Use -Force to overwrite"
+            }
+        }
         if($PassThrough) {
             $metadata
         }

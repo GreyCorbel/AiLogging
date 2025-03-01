@@ -25,7 +25,7 @@ function Add-AiMetadata {
     )
     
     process {
-        $metadata.Add($Name, $Value) | Out-Null
+        $metadata[$Name] = $Value
         if($PassThrough) {
             $metadata
         }
@@ -57,7 +57,7 @@ function Add-AiMetric {
     )
     
     process {
-        $Metrics.Add($Name, $Value) | Out-Null
+        $Metrics[$Name] = $Value
         if($PassThrough) {
             $Metrics
         }
@@ -102,7 +102,8 @@ function Connect-AiLogger
     }
     process
     {
-        add-type -AssemblyName Microsoft.ApplicationInsights
+        if($null -ne $script:LastCreatedAiLogger) {$script.$script:LastCreatedAiLogger.Dispose()}
+
         $config = [Microsoft.ApplicationInsights.Extensibility.TelemetryConfiguration]::CreateDefault()
         $config.ConnectionString = $ConnectionString
         #setup base metadata
@@ -124,6 +125,7 @@ function Connect-AiLogger
             $client.Context.Cloud.RoleInstance = $Instance
         }
         $script:LastCreatedAiLogger = $client
+        Write-Verbose ( ($ConnectionString.Split(';') | Where-Object{$_ -notlike 'InstrumentationKey=*'}) -join ';')
         $client
     }
 }
@@ -226,7 +228,7 @@ function Write-AiDependency
                 $dependencyData.Metrics[$Key] = $Metrics[$key]
             }
         }
-
+        Write-Verbose "Writing dependency: Name = $Name, Type = $DependencyType, Start = $start, Duration = $Duration, Success = $Success,  Target = $Target, Data = $Data"
         $Connection.TrackDependency($dependencyData)
     }
 }
@@ -270,6 +272,8 @@ Function Write-AiEvent
             foreach($key in $Metrics.Keys) {$data.Metrics[$Key] = $Metrics[$key]}
         }
         foreach($key in $Connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $Connection.telemetryMetadata[$key]}
+
+        Write-Verbose "Writing event $EventName"
         $Connection.telemetryClient.TrackEvent($data)
     }
 }
@@ -312,6 +316,8 @@ Function Write-AiException
             foreach($key in $Metrics.Keys) {$data.Metrics[$Key] = $Metrics[$key]}
         }
         foreach($key in $Connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $Connection.telemetryMetadata[$key]}
+
+        Write-Verbose "Writing exteption $Exception.Message"
         $Connection.TrackException($data)
     }
 }
@@ -352,6 +358,7 @@ Function Write-AiMetric
             }
             foreach($key in $Connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $Connection.telemetryMetadata[$key]}
 
+            Write-Verbose "Writing metric $Key = $($metrics[$Key])"
             $Connection.TrackMetric($data)
         }
     }
@@ -401,6 +408,7 @@ Function Write-AiTrace
         }
         foreach($key in $connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $connection.telemetryMetadata[$key]}
 
+        Write-Verbose "Writing trace $Severity`: $Message"
         $connection.TrackTrace($data)
     }
 }

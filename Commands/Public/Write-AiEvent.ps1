@@ -38,6 +38,8 @@ Function Write-AiEvent
             foreach($key in $Metrics.Keys) {$data.Metrics[$Key] = $Metrics[$key]}
         }
         foreach($key in $Connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $Connection.telemetryMetadata[$key]}
+
+        Write-Verbose "Writing event $EventName"
         $Connection.telemetryClient.TrackEvent($data)
     }
 }

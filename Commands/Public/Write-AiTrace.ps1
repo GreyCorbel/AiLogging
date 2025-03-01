@@ -3,15 +3,14 @@ Function Write-AiTrace
     <#
     .SYNOPSIS
         Writes trace message with severity and optional custom metadata.
-        Default severity level is Verbose
+        Default severity level is Information
     
     .EXAMPLE
         Write-AiTrace 'Beginning processing'
 
     .EXAMPLE
-        $meta = New-AiMetadata
-        $meta['Context']='MyContext'
-        Write-AiTrace -Message "Performed context-specific action" -AdditionalMetadata $meta
+        $meta = New-AiMetadata | Add-AiMetadata -Name 'Context' -Value 'MyContext' -PassThrough
+        Write-AiTrace -Message "Performed context-specific action" -Metadata $meta
     #>
     param (
         [Parameter(Mandatory, ValueFromPipeline)]
@@ -43,6 +42,7 @@ Function Write-AiTrace
         }
         foreach($key in $connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $connection.telemetryMetadata[$key]}
 
+        Write-Verbose "Writing trace $Severity`: $Message"
         $connection.TrackTrace($data)
     }
 }
