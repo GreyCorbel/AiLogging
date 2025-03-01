@@ -5,7 +5,7 @@ Function Write-AiMetric
         Logs metric value without any aggregation along with optional custom metadata
     #>
     param (
-        [Parameter(Mandatory)]
+        [Parameter(Mandatory, ValueFromPipeline)]
         [System.Collections.Generic.Dictionary[String,Double]]
             #Values of metrics to be sent
         $Metrics,
@@ -16,7 +16,10 @@ Function Write-AiMetric
         [Parameter()]
             #Connection created by Connect-AiLogger
             #Defaults to last created connection
-        $Connection = $script:LastCreatedAiLogger
+        $Connection = $script:LastCreatedAiLogger,
+        [switch]
+            #Passes matrics from input to the pipeline
+        $PassThrough
     )
     begin
     {
