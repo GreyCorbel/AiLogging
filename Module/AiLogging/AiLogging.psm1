@@ -2,7 +2,7 @@
 function Add-AiMetadata {
     <#
     .SYNOPSIS
-        Registers additional metadata to be sent with all telemetry produced after registered - until removed by call of Remove-AiMetadata or Reset-AiMetadata
+        Adds new metadata to provided metadata collection
     #>
     [CmdletBinding()]
     param (
@@ -21,11 +21,22 @@ function Add-AiMetadata {
         [string]
             #Value of metadata
         $Value,
-        [switch]$PassThrough
+        [switch]
+            #allows rewrite of already present metadata
+        $Force,
+        [switch]
+            #causes input object to be passed to output, enabling chaining
+        $PassThrough
     )
     
     process {
-        $metadata[$Name] = $Value
+        if(-not $metadata.TryAdd($Name, $Value) ) {
+            if($Force) {
+                $metadata[$Name] = $Value
+            } else {
+                Write-Warning "Metadata with name $Name already exists. Use -Force to overwrite"
+            }
+        }
         if($PassThrough) {
             $metadata
         }
@@ -34,13 +45,13 @@ function Add-AiMetadata {
 function Add-AiMetric {
     <#
     .SYNOPSIS
-        Registers additional metadata to be sent with all telemetry produced after registered - until removed by call of Remove-AiMetadata or Reset-AiMetadata
+        Adds new metric to provided metrics collection
     #>
     [CmdletBinding()]
     param (
         [Parameter(Mandatory,ValueFromPipeline)]
         [System.Collections.Generic.Dictionary[String,Double]]
-            #Metadata object created by New-AiMetric
+            #Metrics collection created by New-AiMetric
         $Metrics,
 
         [Parameter(Mandatory)]
@@ -53,11 +64,22 @@ function Add-AiMetric {
         [string]
             #Value of metadata
         $Value,
-        [switch]$PassThrough
+        [switch]
+            #allows rewrite of already present metrics
+        $Force,
+        [switch]
+            #causes input object to be passed to output, enabling chaining
+        $PassThrough
     )
     
     process {
-        $Metrics[$Name] = $Value
+        if(-not $Metrics.TryAdd($Name, $Value)) {
+            if($Force) {
+                $Metrics[$Name] = $Value
+            } else {
+                Write-Warning "Metric with name $Name already exists. Use -Force to overwrite"
+            }
+        }
         if($PassThrough) {
             $Metrics
         }
@@ -65,6 +87,12 @@ function Add-AiMetric {
 }
 function Connect-AiLogger
 {
+    <#
+    .SYNOPSIS
+        Creates connection to Application Insights and sets up metadata for all logs sent with this connection
+    .DESCRIPTION
+        Creates connection to Application Insights and sets up metadata for all logs sent with this connection
+    #>
     param
     (
         [Parameter(Mandatory)]
@@ -133,7 +161,7 @@ Function New-AiMetadata
 {
     <#
     .SYNOPSIS
-        Creates Dictionary<String,String> suitable for adding custom metadata and then sending with Events, Traces, Metrics or Exceptions as Metadata parameter
+        Creates new metadata collection to be used with Add-AiMetadata
     #>
     Process
     {
@@ -144,8 +172,7 @@ Function New-AiMetric
 {
     <#
     .SYNOPSIS
-        Creates Dictionary<String,Double> suitable for adding custom metric values and then sending with Events or Exceptions as Metrics parameter
-        Not suitable for sending standalone metrics - use Write-AiMetric instead
+        Creates new metrics collection to be used with Add-AiMetric
     #>
     Process
     {
@@ -368,15 +395,14 @@ Function Write-AiTrace
     <#
     .SYNOPSIS
         Writes trace message with severity and optional custom metadata.
-        Default severity level is Verbose
+        Default severity level is Information
     
     .EXAMPLE
         Write-AiTrace 'Beginning processing'
 
     .EXAMPLE
-        $meta = New-AiMetadata
-        $meta['Context']='MyContext'
-        Write-AiTrace -Message "Performed context-specific action" -AdditionalMetadata $meta
+        $meta = New-AiMetadata | Add-AiMetadata -Name 'Context' -Value 'MyContext' -PassThrough
+        Write-AiTrace -Message "Performed context-specific action" -Metadata $meta
     #>
     param (
         [Parameter(Mandatory, ValueFromPipeline)]
@@ -429,4 +455,11 @@ function EnsureInitialized
         }
     }
 }
+function Init
+{
+    Add-Type -AssemblyName Microsoft.ApplicationInsights
+}
 #endregion Internal commands
+#region Module initialization
+Init
+#endregion Module initialization
