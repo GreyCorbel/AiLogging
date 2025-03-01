@@ -34,7 +34,6 @@ function Connect-AiLogger
             #Identifier of instance sending the data
             #For automation accounts, it may be usefult for runbooks that run in multiple instances on the same hosts, e.g. runbooks with multiple configurations
         $Instance
-
     )
 
     begin

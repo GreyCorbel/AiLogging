@@ -25,10 +25,12 @@ Function Write-AiEvent
     )
     begin
     {
-        EnsureInitialized -Connection $Connection
+        $doLog = EnsureInitialized -Connection $Connection
     }
     Process
-    {
+    {   
+        if(-not $doLog) {return}
+    
         $data = new-object Microsoft.ApplicationInsights.DataContracts.EventTelemetry($EventName)
 
         if($null -ne $Metadata) {

@@ -9,7 +9,9 @@ function EnsureInitialized
     {
         if($null -eq $Connection)
         {
-            throw 'Please call Connect-AiLogger first'
+            Write-Verbose "No connection provided, will not log telemetry"
+            return $false
         }
+        return $true
     }
 }

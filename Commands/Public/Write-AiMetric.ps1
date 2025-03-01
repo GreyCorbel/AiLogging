@@ -20,11 +20,12 @@ Function Write-AiMetric
     )
     begin
     {
-        EnsureInitialized -Connection $Connection
+        $doLog = EnsureInitialized -Connection $Connection
     }
-    
     Process
-    {
+    {   
+        if(-not $doLog) {return}
+    
         foreach($key in $metrics.Keys)
         {
             $data = new-object Microsoft.ApplicationInsights.DataContracts.MetricTelemetry($key, $Metrics[$key])
