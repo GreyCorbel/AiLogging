@@ -33,7 +33,11 @@ function Connect-AiLogger
         [string]
             #Identifier of instance sending the data
             #For automation accounts, it may be usefult for runbooks that run in multiple instances on the same hosts, e.g. runbooks with multiple configurations
-        $Instance
+        $Instance,
+        [System.Collections.Generic.Dictionary[String,String]]
+        #Additional metadata to be added to each emited telemetry
+        $DefaultMetadata
+
     )
 
     begin
@@ -51,6 +55,13 @@ function Connect-AiLogger
         $client | Add-Member -MemberType NoteProperty -Name TelemetryMetadata -Value (New-Object 'System.Collections.Generic.Dictionary[String,String]')
         $client.telemetryMetadata['Application']=$Application
         $client.telemetryMetadata['Component']=$Component
+        if($null -ne $DefaultMetadata)
+        {
+            foreach($key in $DefaultMetadata.Keys)
+            {
+                $client.telemetryMetadata.TryAdd($key, $DefaultMetadata[$key]) | Out-Null
+            }
+        }
 
         #setup metrics
         $client | Add-Member -MemberType NoteProperty -Name MetricNamespace -Value "$Application`.$Component"

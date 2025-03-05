@@ -120,7 +120,10 @@ function Connect-AiLogger
         [string]
             #Identifier of instance sending the data
             #For automation accounts, it may be usefult for runbooks that run in multiple instances on the same hosts, e.g. runbooks with multiple configurations
-        $Instance
+        $Instance,
+        [System.Collections.Generic.Dictionary[String,String]]
+        #Additional metadata to be added to each emited telemetry
+        $DefaultMetadata
 
     )
 
@@ -139,6 +142,13 @@ function Connect-AiLogger
         $client | Add-Member -MemberType NoteProperty -Name TelemetryMetadata -Value (New-Object 'System.Collections.Generic.Dictionary[String,String]')
         $client.telemetryMetadata['Application']=$Application
         $client.telemetryMetadata['Component']=$Component
+        if($null -ne $DefaultMetadata)
+        {
+            foreach($key in $DefaultMetadata.Keys)
+            {
+                $client.telemetryMetadata.TryAdd($key, $DefaultMetadata[$key]) | Out-Null
+            }
+        }
 
         #setup metrics
         $client | Add-Member -MemberType NoteProperty -Name MetricNamespace -Value "$Application`.$Component"
@@ -157,15 +167,41 @@ function Connect-AiLogger
         $client
     }
 }
+function Get-AiConnection {
+    <#
+    .SYNOPSIS
+        Returns most recently created Application Insights connection
+    #>
+    [CmdletBinding()]
+    param ()
+    
+    process {
+        $script:LastCreatedAiLogger
+    }
+}
 Function New-AiMetadata
 {
     <#
     .SYNOPSIS
         Creates new metadata collection to be used with Add-AiMetadata
     #>
+    param 
+    (
+        [Parameter()]
+        [string]
+            #Name of the metric
+        $Name,
+        [Parameter()]
+        [string]
+            #Value of the metric
+        $Value
+    )
+
     Process
     {
-        new-object 'System.Collections.Generic.Dictionary[String,String]'
+        $metadata = new-object 'System.Collections.Generic.Dictionary[String,String]'
+        if(-not [string]::IsNullOrEmpty($Name)) {$metadata[$Name] = $Value}
+        return $metadata
     }
 }
 Function New-AiMetric
@@ -174,9 +210,22 @@ Function New-AiMetric
     .SYNOPSIS
         Creates new metrics collection to be used with Add-AiMetric
     #>
+    param 
+    (
+        [Parameter()]
+        [string]
+            #Name of the metric
+        $Name,
+        [Parameter()]
+        [double]
+            #Value of the metric
+        $Value
+    )
     Process
     {
-        new-object 'System.Collections.Generic.Dictionary[String,Double]'
+        $metric = new-object 'System.Collections.Generic.Dictionary[String,Double]'
+        if(-not [string]::IsNullOrEmpty($Name)) {$metric[$Name] = $Value}
+        return $metric
     }
 }
 function Write-AiDependency
@@ -232,11 +281,12 @@ function Write-AiDependency
     )
     begin
     {
-        EnsureInitialized -Connection $Connection
+        $doLog = EnsureInitialized -Connection $Connection
     }
-
-    process
-    {
+    Process
+    {   
+        if(-not $doLog) {return}
+    
         if($null -eq $Duration) {$Duration = (Get-Date) - $Start}
         $dependencyData = new-object Microsoft.ApplicationInsights.DataContracts.DependencyTelemetry
         foreach($key in $Connection.telemetryMetadata.Keys) {$dependencyData.Properties[$Key] = $Connection.telemetryMetadata[$key]}
@@ -286,10 +336,12 @@ Function Write-AiEvent
     )
     begin
     {
-        EnsureInitialized -Connection $Connection
+        $doLog = EnsureInitialized -Connection $Connection
     }
     Process
-    {
+    {   
+        if(-not $doLog) {return}
+    
         $data = new-object Microsoft.ApplicationInsights.DataContracts.EventTelemetry($EventName)
 
         if($null -ne $Metadata) {
@@ -330,11 +382,12 @@ Function Write-AiException
     )
     begin
     {
-        EnsureInitialized -Connection $Connection
+        $doLog = EnsureInitialized -Connection $Connection
     }
-
     Process
-    {
+    {   
+        if(-not $doLog) {return}
+    
         $data = new-object Microsoft.ApplicationInsights.DataContracts.ExceptionTelemetry($Exception)
         if($null -ne $Metadata) {
             foreach($key in $Metadata.Keys) {$data.Properties[$Key] = $Metadata[$key]}
@@ -355,7 +408,7 @@ Function Write-AiMetric
         Logs metric value without any aggregation along with optional custom metadata
     #>
     param (
-        [Parameter(Mandatory)]
+        [Parameter(Mandatory, ValueFromPipeline)]
         [System.Collections.Generic.Dictionary[String,Double]]
             #Values of metrics to be sent
         $Metrics,
@@ -366,15 +419,19 @@ Function Write-AiMetric
         [Parameter()]
             #Connection created by Connect-AiLogger
             #Defaults to last created connection
-        $Connection = $script:LastCreatedAiLogger
+        $Connection = $script:LastCreatedAiLogger,
+        [switch]
+            #Passes matrics from input to the pipeline
+        $PassThrough
     )
     begin
     {
-        EnsureInitialized -Connection $Connection
+        $doLog = EnsureInitialized -Connection $Connection
     }
-    
     Process
-    {
+    {   
+        if(-not $doLog) {return}
+    
         foreach($key in $metrics.Keys)
         {
             $data = new-object Microsoft.ApplicationInsights.DataContracts.MetricTelemetry($key, $Metrics[$key])
@@ -424,10 +481,12 @@ Function Write-AiTrace
     )
     begin
     {
-        EnsureInitialized -Connection $Connection
+        $doLog = EnsureInitialized -Connection $Connection
     }
     Process
-    {
+    {   
+        if(-not $doLog) {return}
+
         $data = new-object Microsoft.ApplicationInsights.DataContracts.TraceTelemetry($Message, $Severity)
         if($null -ne $Metadata) {
             foreach($key in $Metadata.Keys) {$data.Properties[$Key] = $Metadata[$key]}
@@ -451,8 +510,10 @@ function EnsureInitialized
     {
         if($null -eq $Connection)
         {
-            throw 'Please call Connect-AiLogger first'
+            Write-Verbose "No connection provided, will not log telemetry"
+            return $false
         }
+        return $true
     }
 }
 function Init
