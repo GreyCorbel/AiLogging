@@ -39,7 +39,7 @@ Function Write-AiException
         }
         foreach($key in $Connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $Connection.telemetryMetadata[$key]}
 
-        Write-Verbose "Writing exteption $Exception.Message"
+        Write-Verbose "AiLogger: Writing exteption $Exception.Message"
         $Connection.TrackException($data)
     }
 }

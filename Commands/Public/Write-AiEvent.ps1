@@ -41,7 +41,7 @@ Function Write-AiEvent
         }
         foreach($key in $Connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $Connection.telemetryMetadata[$key]}
 
-        Write-Verbose "Writing event $EventName"
+        Write-Verbose "AiLogger: Writing event $EventName"
         $Connection.telemetryClient.TrackEvent($data)
     }
 }

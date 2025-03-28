@@ -39,7 +39,7 @@ Function Write-AiMetric
             }
             foreach($key in $Connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $Connection.telemetryMetadata[$key]}
 
-            Write-Verbose "Writing metric $Key = $($metrics[$Key])"
+            Write-Verbose "AiLogger: Writing metric $Key = $($metrics[$Key])"
             $Connection.TrackMetric($data)
         }
     }

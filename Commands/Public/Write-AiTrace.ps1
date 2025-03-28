@@ -44,7 +44,7 @@ Function Write-AiTrace
         }
         foreach($key in $connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $connection.telemetryMetadata[$key]}
 
-        Write-Verbose "Writing trace $Severity`: $Message"
+        Write-Verbose "AiLogger: Writing trace $Severity`: $Message"
         $connection.TrackTrace($data)
     }
 }
