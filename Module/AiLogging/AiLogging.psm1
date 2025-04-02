@@ -95,7 +95,7 @@ function Connect-AiLogger
     #>
     param
     (
-        [Parameter(Mandatory)]
+        [Parameter()]
         [string]
             #AppInsights connection string
         $ConnectionString,
@@ -136,7 +136,19 @@ function Connect-AiLogger
         if($null -ne $script:LastCreatedAiLogger) {$script.$script:LastCreatedAiLogger.Dispose()}
 
         $config = [Microsoft.ApplicationInsights.Extensibility.TelemetryConfiguration]::CreateDefault()
-        $config.ConnectionString = $ConnectionString
+        if([string]::IsNullOrEmpty($ConnectionString))
+        {
+            #try to load connection string from environment variable
+            $ConnectionString = $env:APPLICATIONINSIGHTS_CONNECTION_STRING
+        }
+        if([string]::IsNullOrEmpty($ConnectionString))
+        {
+            Write-Warning 'Connection string was not provided and no environment variable APPLICATIONINSIGHTS_CONNECTION_STRING was found'
+        }
+        else {
+            $config.ConnectionString = $ConnectionString
+        }
+        
         #setup base metadata
         $client = new-object Microsoft.ApplicationInsights.TelemetryClient($config)
         $client | Add-Member -MemberType NoteProperty -Name TelemetryMetadata -Value (New-Object 'System.Collections.Generic.Dictionary[String,String]')
@@ -152,6 +164,11 @@ function Connect-AiLogger
 
         #setup metrics
         $client | Add-Member -MemberType NoteProperty -Name MetricNamespace -Value "$Application`.$Component"
+
+        #setup rolename and roleInstance
+        $telemetryInitializer = new-object CloudRoleNameTelemetryInitializer($Role, $Instance)
+
+        $config.TelemetryInitializers.Add($telemetryInitializer) | Out-Null
         if(-not [string]::IsNullOrEmpty($Role))
         {
             $client.Context.Cloud.RoleName=$Role
@@ -281,12 +298,10 @@ function Write-AiDependency
     )
     begin
     {
-        $doLog = EnsureInitialized -Connection $Connection
+
     }
     Process
     {   
-        if(-not $doLog) {return}
-    
         if($null -eq $Duration) {$Duration = (Get-Date) - $Start}
         $dependencyData = new-object Microsoft.ApplicationInsights.DataContracts.DependencyTelemetry
         foreach($key in $Connection.telemetryMetadata.Keys) {$dependencyData.Properties[$Key] = $Connection.telemetryMetadata[$key]}
@@ -336,11 +351,10 @@ Function Write-AiEvent
     )
     begin
     {
-        $doLog = EnsureInitialized -Connection $Connection
+
     }
     Process
     {   
-        if(-not $doLog) {return}
     
         $data = new-object Microsoft.ApplicationInsights.DataContracts.EventTelemetry($EventName)
 
@@ -352,7 +366,7 @@ Function Write-AiEvent
         }
         foreach($key in $Connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $Connection.telemetryMetadata[$key]}
 
-        Write-Verbose "Writing event $EventName"
+        Write-Verbose "AiLogger: Writing event $EventName"
         $Connection.telemetryClient.TrackEvent($data)
     }
 }
@@ -382,12 +396,10 @@ Function Write-AiException
     )
     begin
     {
-        $doLog = EnsureInitialized -Connection $Connection
+
     }
     Process
     {   
-        if(-not $doLog) {return}
-    
         $data = new-object Microsoft.ApplicationInsights.DataContracts.ExceptionTelemetry($Exception)
         if($null -ne $Metadata) {
             foreach($key in $Metadata.Keys) {$data.Properties[$Key] = $Metadata[$key]}
@@ -397,7 +409,7 @@ Function Write-AiException
         }
         foreach($key in $Connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $Connection.telemetryMetadata[$key]}
 
-        Write-Verbose "Writing exteption $Exception.Message"
+        Write-Verbose "AiLogger: Writing exteption $Exception.Message"
         $Connection.TrackException($data)
     }
 }
@@ -426,12 +438,10 @@ Function Write-AiMetric
     )
     begin
     {
-        $doLog = EnsureInitialized -Connection $Connection
+
     }
     Process
     {   
-        if(-not $doLog) {return}
-    
         foreach($key in $metrics.Keys)
         {
             $data = new-object Microsoft.ApplicationInsights.DataContracts.MetricTelemetry($key, $Metrics[$key])
@@ -442,7 +452,7 @@ Function Write-AiMetric
             }
             foreach($key in $Connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $Connection.telemetryMetadata[$key]}
 
-            Write-Verbose "Writing metric $Key = $($metrics[$Key])"
+            Write-Verbose "AiLogger: Writing metric $Key = $($metrics[$Key])"
             $Connection.TrackMetric($data)
         }
     }
@@ -481,19 +491,17 @@ Function Write-AiTrace
     )
     begin
     {
-        $doLog = EnsureInitialized -Connection $Connection
+
     }
     Process
     {   
-        if(-not $doLog) {return}
-
         $data = new-object Microsoft.ApplicationInsights.DataContracts.TraceTelemetry($Message, $Severity)
         if($null -ne $Metadata) {
             foreach($key in $Metadata.Keys) {$data.Properties[$Key] = $Metadata[$key]}
         }
         foreach($key in $connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $connection.telemetryMetadata[$key]}
 
-        Write-Verbose "Writing trace $Severity`: $Message"
+        Write-Verbose "AiLogger: Writing trace $Severity`: $Message"
         $connection.TrackTrace($data)
     }
 }
@@ -510,7 +518,7 @@ function EnsureInitialized
     {
         if($null -eq $Connection)
         {
-            Write-Verbose "No connection provided, will not log telemetry"
+            Write-Verbose "AiLogger: No connection provided, will not log telemetry"
             return $false
         }
         return $true
@@ -519,6 +527,9 @@ function EnsureInitialized
 function Init
 {
     Add-Type -AssemblyName Microsoft.ApplicationInsights
+
+    $typeData = Get-Content -Path $PSScriptRoot\Helpers\CloudRoleNameTelemetryInitializer.cs -Raw
+    Add-Type -TypeDefinition $typeData -ReferencedAssemblies Microsoft.ApplicationInsights
 }
 #endregion Internal commands
 #region Module initialization

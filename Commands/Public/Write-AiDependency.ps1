@@ -51,12 +51,10 @@ function Write-AiDependency
     )
     begin
     {
-        $doLog = EnsureInitialized -Connection $Connection
+
     }
     Process
     {   
-        if(-not $doLog) {return}
-    
         if($null -eq $Duration) {$Duration = (Get-Date) - $Start}
         $dependencyData = new-object Microsoft.ApplicationInsights.DataContracts.DependencyTelemetry
         foreach($key in $Connection.telemetryMetadata.Keys) {$dependencyData.Properties[$Key] = $Connection.telemetryMetadata[$key]}

@@ -24,12 +24,10 @@ Function Write-AiException
     )
     begin
     {
-        $doLog = EnsureInitialized -Connection $Connection
+
     }
     Process
     {   
-        if(-not $doLog) {return}
-    
         $data = new-object Microsoft.ApplicationInsights.DataContracts.ExceptionTelemetry($Exception)
         if($null -ne $Metadata) {
             foreach($key in $Metadata.Keys) {$data.Properties[$Key] = $Metadata[$key]}

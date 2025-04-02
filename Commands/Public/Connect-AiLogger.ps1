@@ -8,7 +8,7 @@ function Connect-AiLogger
     #>
     param
     (
-        [Parameter(Mandatory)]
+        [Parameter()]
         [string]
             #AppInsights connection string
         $ConnectionString,
@@ -49,7 +49,19 @@ function Connect-AiLogger
         if($null -ne $script:LastCreatedAiLogger) {$script.$script:LastCreatedAiLogger.Dispose()}
 
         $config = [Microsoft.ApplicationInsights.Extensibility.TelemetryConfiguration]::CreateDefault()
-        $config.ConnectionString = $ConnectionString
+        if([string]::IsNullOrEmpty($ConnectionString))
+        {
+            #try to load connection string from environment variable
+            $ConnectionString = $env:APPLICATIONINSIGHTS_CONNECTION_STRING
+        }
+        if([string]::IsNullOrEmpty($ConnectionString))
+        {
+            Write-Warning 'Connection string was not provided and no environment variable APPLICATIONINSIGHTS_CONNECTION_STRING was found'
+        }
+        else {
+            $config.ConnectionString = $ConnectionString
+        }
+        
         #setup base metadata
         $client = new-object Microsoft.ApplicationInsights.TelemetryClient($config)
         $client | Add-Member -MemberType NoteProperty -Name TelemetryMetadata -Value (New-Object 'System.Collections.Generic.Dictionary[String,String]')
@@ -65,6 +77,11 @@ function Connect-AiLogger
 
         #setup metrics
         $client | Add-Member -MemberType NoteProperty -Name MetricNamespace -Value "$Application`.$Component"
+
+        #setup rolename and roleInstance
+        $telemetryInitializer = new-object CloudRoleNameTelemetryInitializer($Role, $Instance)
+
+        $config.TelemetryInitializers.Add($telemetryInitializer) | Out-Null
         if(-not [string]::IsNullOrEmpty($Role))
         {
             $client.Context.Cloud.RoleName=$Role
