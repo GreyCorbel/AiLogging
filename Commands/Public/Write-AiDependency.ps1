@@ -26,11 +26,12 @@ function Write-AiDependency
         [Parameter(Mandatory)]
         [DateTime]
             #When the call started
+            # must be in UTC
         $Start,
         [Parameter()]
         [TimeSpan]
             #Duration of the call
-            #Default: current time - Start
+            #Default: (current time in UTC) - Start
         $Duration,
         [Parameter()]
         [string]
@@ -55,7 +56,7 @@ function Write-AiDependency
     }
     Process
     {   
-        if($null -eq $Duration) {$Duration = (Get-Date) - $Start}
+        if($null -eq $Duration) {$Duration = (Get-Date -AsUTC) - $Start}
         $dependencyData = new-object Microsoft.ApplicationInsights.DataContracts.DependencyTelemetry
         foreach($key in $Connection.telemetryMetadata.Keys) {$dependencyData.Properties[$Key] = $Connection.telemetryMetadata[$key]}
         $dependencyData.Type=$DependencyType
