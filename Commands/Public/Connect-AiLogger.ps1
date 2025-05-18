@@ -46,7 +46,7 @@ function Connect-AiLogger
     }
     process
     {
-        if($null -ne $script:LastCreatedAiLogger) {$script.$script:LastCreatedAiLogger.Dispose()}
+        if($null -ne $script:LastCreatedAiLogger) {$script:LastCreatedAiLogger.Dispose()}
 
         $config = [Microsoft.ApplicationInsights.Extensibility.TelemetryConfiguration]::CreateDefault()
         if([string]::IsNullOrEmpty($ConnectionString))

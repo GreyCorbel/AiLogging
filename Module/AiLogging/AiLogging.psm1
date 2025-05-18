@@ -133,7 +133,7 @@ function Connect-AiLogger
     }
     process
     {
-        if($null -ne $script:LastCreatedAiLogger) {$script.$script:LastCreatedAiLogger.Dispose()}
+        if($null -ne $script:LastCreatedAiLogger) {$script:LastCreatedAiLogger.Dispose()}
 
         $config = [Microsoft.ApplicationInsights.Extensibility.TelemetryConfiguration]::CreateDefault()
         if([string]::IsNullOrEmpty($ConnectionString))
@@ -245,6 +245,39 @@ Function New-AiMetric
         return $metric
     }
 }
+Function Set-DefaultMetadata
+{
+    <#
+    .SYNOPSIS
+        Updates default metadata for the connection, replacing value of any existing metadata
+    .DESCRIPTION
+        Updates default metadata for the connection. 
+        This metadata is sent with all telemetry items unless overridden by specific metadata.
+        Values of any existing default metadata are replaced by the new values.
+    #>
+    param (
+        [Parameter(Mandatory, ValueFromPipeline)]
+        [System.Collections.Generic.Dictionary[String,String]]
+            #Optional metadata to be sent with metric
+        $Metadata,
+        [Parameter()]
+            #Connection created by Connect-AiLogger
+            #Defaults to last created connection
+        $Connection = $script:LastCreatedAiLogger
+    )
+    begin
+    {
+
+    }
+    Process
+    {   
+        foreach($key in $Metadata.Keys)
+        {
+            Write-Verbose "AiLogger: Setting default metadata $key = $($Metadata[$key])"
+            $client.telemetryMetadata[$key] = $Metadata[$key] | Out-Null
+        }
+    }
+}
 function Write-AiDependency
 {
     <#
@@ -273,11 +306,12 @@ function Write-AiDependency
         [Parameter(Mandatory)]
         [DateTime]
             #When the call started
+            # must be in UTC
         $Start,
         [Parameter()]
         [TimeSpan]
             #Duration of the call
-            #Default: current time - Start
+            #Default: (current time in UTC) - Start
         $Duration,
         [Parameter()]
         [string]
@@ -302,7 +336,7 @@ function Write-AiDependency
     }
     Process
     {   
-        if($null -eq $Duration) {$Duration = (Get-Date) - $Start}
+        if($null -eq $Duration) {$Duration = (Get-Date -AsUTC) - $Start}
         $dependencyData = new-object Microsoft.ApplicationInsights.DataContracts.DependencyTelemetry
         foreach($key in $Connection.telemetryMetadata.Keys) {$dependencyData.Properties[$Key] = $Connection.telemetryMetadata[$key]}
         $dependencyData.Type=$DependencyType
@@ -442,9 +476,9 @@ Function Write-AiMetric
     }
     Process
     {   
-        foreach($key in $metrics.Keys)
+        foreach($metricKey in $metrics.Keys)
         {
-            $data = new-object Microsoft.ApplicationInsights.DataContracts.MetricTelemetry($key, $Metrics[$key])
+            $data = new-object Microsoft.ApplicationInsights.DataContracts.MetricTelemetry($metricKey, $Metrics[$metricKey])
             $data.MetricNamespace = $Connection.MetricNamespace
 
             if($null -ne $Metadata) {
@@ -452,7 +486,7 @@ Function Write-AiMetric
             }
             foreach($key in $Connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $Connection.telemetryMetadata[$key]}
 
-            Write-Verbose "AiLogger: Writing metric $Key = $($metrics[$Key])"
+            Write-Verbose "AiLogger: Writing metric $metricKey = $($metrics[$metricKey])"
             $Connection.TrackMetric($data)
         }
     }
