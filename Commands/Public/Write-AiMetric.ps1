@@ -27,9 +27,9 @@ Function Write-AiMetric
     }
     Process
     {   
-        foreach($key in $metrics.Keys)
+        foreach($metricKey in $metrics.Keys)
         {
-            $data = new-object Microsoft.ApplicationInsights.DataContracts.MetricTelemetry($key, $Metrics[$key])
+            $data = new-object Microsoft.ApplicationInsights.DataContracts.MetricTelemetry($metricKey, $Metrics[$metricKey])
             $data.MetricNamespace = $Connection.MetricNamespace
 
             if($null -ne $Metadata) {
@@ -37,7 +37,7 @@ Function Write-AiMetric
             }
             foreach($key in $Connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $Connection.telemetryMetadata[$key]}
 
-            Write-Verbose "AiLogger: Writing metric $Key = $($metrics[$Key])"
+            Write-Verbose "AiLogger: Writing metric $metricKey = $($metrics[$metricKey])"
             $Connection.TrackMetric($data)
         }
     }
