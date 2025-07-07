@@ -2,7 +2,7 @@ Function Submit-AiData
 {
     <#
     .SYNOPSIS
-        Logs metric value without any aggregation along with optional custom metadata
+        Flushes buffered data to Application Insights.
     #>
     param (
         [Parameter()]
