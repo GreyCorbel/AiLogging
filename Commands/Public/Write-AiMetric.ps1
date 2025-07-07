@@ -16,10 +16,7 @@ Function Write-AiMetric
         [Parameter()]
             #Connection created by Connect-AiLogger
             #Defaults to last created connection
-        $Connection = $script:LastCreatedAiLogger,
-        [switch]
-            #Passes matrics from input to the pipeline
-        $PassThrough
+        $Connection = $script:LastCreatedAiLogger
     )
     begin
     {
