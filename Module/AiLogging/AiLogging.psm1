@@ -274,7 +274,7 @@ Function Set-AiDefaultMetadata
         foreach($key in $Metadata.Keys)
         {
             Write-Verbose "AiLogger: Setting default metadata $key = $($Metadata[$key])"
-            $client.telemetryMetadata[$key] = $Metadata[$key] | Out-Null
+            $connection.TelemetryMetadata.Add($key, $Metadata[$key]) | Out-Null
         }
     }
 }
