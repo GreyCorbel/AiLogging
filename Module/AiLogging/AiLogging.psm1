@@ -245,7 +245,7 @@ Function New-AiMetric
         return $metric
     }
 }
-Function Set-DefaultMetadata
+Function Set-AiDefaultMetadata
 {
     <#
     .SYNOPSIS
@@ -276,6 +276,25 @@ Function Set-DefaultMetadata
             Write-Verbose "AiLogger: Setting default metadata $key = $($Metadata[$key])"
             $client.telemetryMetadata[$key] = $Metadata[$key] | Out-Null
         }
+    }
+}
+Function Submit-AiData
+{
+    <#
+    .SYNOPSIS
+        Flushes buffered data to Application Insights.
+    #>
+    param (
+        [Parameter()]
+            #Connection created by Connect-AiLogger
+            #Defaults to last created connection
+        $Connection = $script:LastCreatedAiLogger
+    )
+    Process
+    {   
+        Write-Verbose "AiLogger: Flushing buffered data to Application Insights"
+        $Connection.Flush()
+        Start-Sleep -Seconds 1 # Allow time for flush to complete
     }
 }
 function Write-AiDependency
@@ -465,10 +484,7 @@ Function Write-AiMetric
         [Parameter()]
             #Connection created by Connect-AiLogger
             #Defaults to last created connection
-        $Connection = $script:LastCreatedAiLogger,
-        [switch]
-            #Passes matrics from input to the pipeline
-        $PassThrough
+        $Connection = $script:LastCreatedAiLogger
     )
     begin
     {
