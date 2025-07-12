@@ -72,6 +72,8 @@ jobs:
         SECRET: ${{ secrets.GC_PSGALLERY_APIKEY }}
       run: |
         $moduleName = $env:MODULE_NAME
+        write-host "Running Get-PSResourceRepository to make sure that mandatory PSResourceRepository.xml is created"
+        Get-PSResourceRepository
         write-host "Publishing from: $env:GITHUB_WORKSPACE\Module\$moduleName"
         try
         {
