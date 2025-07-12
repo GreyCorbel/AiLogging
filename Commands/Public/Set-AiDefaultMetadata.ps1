@@ -1,4 +1,4 @@
-Function Set-DefaultMetadata
+Function Set-AiDefaultMetadata
 {
     <#
     .SYNOPSIS

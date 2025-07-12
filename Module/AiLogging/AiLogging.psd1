@@ -12,7 +12,7 @@
 RootModule = 'AiLogging.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.0.11'
+ModuleVersion = '2.0.12'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
@@ -71,7 +71,7 @@ PowerShellVersion = '5.1'
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
 FunctionsToExport = @(
-    'Connect-AiLogger', 'Get-AiConnection', 'Set-DefaultMetadata',
+    'Connect-AiLogger', 'Get-AiConnection', 'Set-AiDefaultMetadata',
     'Add-AiMetadata', 'Add-AiMetric',
     'Write-AiTrace', 'Write-AiException','Write-AiEvent', 'Write-AiMetric', 'Write-AiDependency',
     'New-AiMetric','New-AiMetadata',
