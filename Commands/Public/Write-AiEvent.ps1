@@ -2,8 +2,34 @@ Function Write-AiEvent
 {
     <#
     .SYNOPSIS
-        Traces event along with optional custom metadata and metrics.
-        Usable when logging additional metrics associated with/related to the event that is not suitable to be logged standalone
+        Logs an event with optional metadata and metrics.
+
+    .DESCRIPTION
+        Writes event telemetry to Application Insights. Use events for important business or workflow
+        milestones that may also carry related metadata and numeric measurements.
+
+    .PARAMETER EventName
+        Name of the event to record.
+
+    .PARAMETER Metrics
+        Optional metrics dictionary to include with the event.
+
+    .PARAMETER Metadata
+        Optional metadata dictionary to include with the event.
+
+    .PARAMETER Connection
+        Telemetry connection created by Connect-AiLogger. When omitted, the most recently created
+        connection is used.
+
+    .EXAMPLE
+        Write-AiEvent -EventName 'IngestionStarted'
+
+        Writes a simple event using the active connection.
+
+    .EXAMPLE
+        Write-AiEvent -EventName 'IngestionCompleted' -Metadata $metadata -Metrics $metrics -Connection $connection
+
+        Writes an event with additional metadata and metrics.
     #>
     param (
         [Parameter(Mandatory, ValueFromPipeline)]
@@ -41,6 +67,6 @@ Function Write-AiEvent
         foreach($key in $Connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $Connection.telemetryMetadata[$key]}
 
         Write-Verbose "AiLogger: Writing event $EventName"
-        $Connection.telemetryClient.TrackEvent($data)
+        $Connection.TrackEvent($data)
     }
 }

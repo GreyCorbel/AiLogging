@@ -1,7 +1,37 @@
 function Add-AiMetadata {
     <#
     .SYNOPSIS
-        Adds new metadata to provided metadata collection
+        Adds a metadata entry to a metadata dictionary.
+
+    .DESCRIPTION
+        Adds a named metadata value to a dictionary created by New-AiMetadata.
+        If the metadata name already exists, the value is only replaced when -Force is used.
+        Use -PassThrough to keep the dictionary on the pipeline for chaining.
+
+    .PARAMETER Metadata
+        Metadata dictionary created by New-AiMetadata.
+
+    .PARAMETER Name
+        Metadata key to add.
+
+    .PARAMETER Value
+        Metadata value to add.
+
+    .PARAMETER Force
+        Replaces an existing metadata value when the same key is already present.
+
+    .PARAMETER PassThrough
+        Returns the updated metadata dictionary so you can continue piping it.
+
+    .EXAMPLE
+        New-AiMetadata | Add-AiMetadata -Name 'TenantId' -Value 'contoso' -PassThrough
+
+        Creates a metadata dictionary, adds a key, and emits the updated dictionary.
+
+    .EXAMPLE
+        $metadata | Add-AiMetadata -Name 'Environment' -Value 'Prod' -Force
+
+        Replaces the value of an existing metadata key named Environment.
     #>
     [CmdletBinding()]
     param (

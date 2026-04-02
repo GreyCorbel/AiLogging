@@ -2,7 +2,30 @@ Function New-AiMetadata
 {
     <#
     .SYNOPSIS
-        Creates new metadata collection to be used with Add-AiMetadata
+        Creates a metadata dictionary.
+
+    .DESCRIPTION
+        Creates a System.Collections.Generic.Dictionary[String,String] for telemetry metadata.
+        You can optionally seed it with an initial key-value pair and then add more entries with Add-AiMetadata.
+
+    .PARAMETER Name
+        Optional initial metadata key.
+
+    .PARAMETER Value
+        Optional initial metadata value.
+
+    .OUTPUTS
+        System.Collections.Generic.Dictionary[String,String]
+
+    .EXAMPLE
+        New-AiMetadata
+
+        Creates an empty metadata dictionary.
+
+    .EXAMPLE
+        New-AiMetadata -Name 'TenantId' -Value 'contoso'
+
+        Creates a metadata dictionary with a single initial entry.
     #>
     param 
     (

@@ -2,7 +2,39 @@ Function Write-AiException
 {
     <#
     .SYNOPSIS
-        Traces exception along with optional custom metadata and metrics
+        Logs an exception with optional metadata and metrics.
+
+    .DESCRIPTION
+        Writes exception telemetry to Application Insights. Use this command inside catch blocks
+        to record exceptions together with relevant metadata and measurements.
+
+    .PARAMETER Exception
+        Exception instance to record.
+
+    .PARAMETER Metrics
+        Optional metrics dictionary to include with the exception telemetry.
+
+    .PARAMETER Metadata
+        Optional metadata dictionary to include with the exception telemetry.
+
+    .PARAMETER Connection
+        Telemetry connection created by Connect-AiLogger. When omitted, the most recently created
+        connection is used.
+
+    .EXAMPLE
+        try {
+            Invoke-RiskyOperation
+        }
+        catch {
+            $_.Exception | Write-AiException
+        }
+
+        Writes the caught exception by using the pipeline.
+
+    .EXAMPLE
+        $_.Exception | Write-AiException -Metadata $metadata -Metrics $metrics -Connection $connection
+
+        Writes the exception together with additional context.
     #>
     param (
         [Parameter(Mandatory, ValueFromPipeline)]
@@ -37,7 +69,7 @@ Function Write-AiException
         }
         foreach($key in $Connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $Connection.telemetryMetadata[$key]}
 
-        Write-Verbose "AiLogger: Writing exteption $Exception.Message"
+        Write-Verbose "AiLogger: Writing exception $($Exception.Message)"
         $Connection.TrackException($data)
     }
 }

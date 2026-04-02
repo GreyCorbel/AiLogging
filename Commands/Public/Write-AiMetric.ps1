@@ -2,7 +2,31 @@ Function Write-AiMetric
 {
     <#
     .SYNOPSIS
-        Logs metric value without any aggregation along with optional custom metadata
+        Logs metric values with optional metadata.
+
+    .DESCRIPTION
+        Writes each metric in a metrics dictionary to Application Insights without local aggregation.
+        The metric namespace is taken from the connection created by Connect-AiLogger.
+
+    .PARAMETER Metrics
+        Metrics dictionary to write.
+
+    .PARAMETER Metadata
+        Optional metadata dictionary to include with every metric written by this call.
+
+    .PARAMETER Connection
+        Telemetry connection created by Connect-AiLogger. When omitted, the most recently created
+        connection is used.
+
+    .EXAMPLE
+        New-AiMetric -Name 'ProcessedItems' -Value 42 | Write-AiMetric
+
+        Writes a single metric by using the active connection.
+
+    .EXAMPLE
+        $metrics | Write-AiMetric -Metadata $metadata -Connection $connection
+
+        Writes multiple metrics together with shared metadata.
     #>
     param (
         [Parameter(Mandatory, ValueFromPipeline)]

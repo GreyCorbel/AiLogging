@@ -2,9 +2,46 @@ function Connect-AiLogger
 {
     <#
     .SYNOPSIS
-        Creates connection to Application Insights and sets up metadata for all logs sent with this connection
+        Creates an Application Insights telemetry connection.
+
     .DESCRIPTION
-        Creates connection to Application Insights and sets up metadata for all logs sent with this connection
+        Creates a telemetry client for Application Insights, configures default metadata,
+        and stores the client as the most recently created connection used by other commands.
+        If -ConnectionString is omitted, the command reads APPLICATIONINSIGHTS_CONNECTION_STRING
+        from the current environment.
+
+    .PARAMETER ConnectionString
+        Application Insights connection string. When omitted, the command tries to use the
+        APPLICATIONINSIGHTS_CONNECTION_STRING environment variable.
+
+    .PARAMETER Application
+        Application name added to default telemetry metadata and used when building the metric namespace.
+
+    .PARAMETER Component
+        Component name added to default telemetry metadata and used when building the metric namespace.
+
+    .PARAMETER Role
+        Optional cloud role name associated with emitted telemetry.
+
+    .PARAMETER Instance
+        Optional cloud role instance associated with emitted telemetry.
+
+    .PARAMETER DefaultMetadata
+        Additional metadata to attach to every telemetry item sent through the connection.
+
+    .OUTPUTS
+        Microsoft.ApplicationInsights.TelemetryClient
+
+    .EXAMPLE
+        Connect-AiLogger -Application 'myAutomationAccount' -Component 'MyRunbook'
+
+        Creates a connection using the APPLICATIONINSIGHTS_CONNECTION_STRING environment variable.
+
+    .EXAMPLE
+        $metadata = New-AiMetadata -Name 'Environment' -Value 'Prod'
+        Connect-AiLogger -ConnectionString $env:APPLICATIONINSIGHTS_CONNECTION_STRING -Application 'Orders' -Component 'Worker' -Role 'HybridWorker' -Instance $env:COMPUTERNAME -DefaultMetadata $metadata
+
+        Creates a connection with explicit role and default metadata.
     #>
     param
     (
