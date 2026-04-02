@@ -37,7 +37,6 @@ function Connect-AiLogger
         [System.Collections.Generic.Dictionary[String,String]]
         #Additional metadata to be added to each emited telemetry
         $DefaultMetadata
-
     )
 
     begin
@@ -46,7 +45,7 @@ function Connect-AiLogger
     }
     process
     {
-        if($null -ne $script:LastCreatedAiLogger) {$script:LastCreatedAiLogger.Dispose()}
+        if($null -ne $script:LastCreatedAiLogger) {$script:LastCreatedAiLogger.TelemetryConfiguration.Dispose()}
 
         $config = [Microsoft.ApplicationInsights.Extensibility.TelemetryConfiguration]::CreateDefault()
         if([string]::IsNullOrEmpty($ConnectionString))
