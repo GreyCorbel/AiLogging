@@ -12,7 +12,7 @@
 RootModule = 'AiLogging.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.0.16'
+ModuleVersion = '2.0.17'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core')
@@ -27,7 +27,7 @@ Author = 'Jiri Formacek'
 CompanyName = 'GreyCorbel Solutions'
 
 # Copyright statement for this module
-Copyright = '(c) 2020 - 2025 Jiri Formacek, GreyCorbel Solutions'
+Copyright = '(c) 2020 - 2026 Jiri Formacek, GreyCorbel Solutions'
 
 # Description of the functionality provided by this module
 Description = 'Helper module for PowerShell developers that allows easy logging of script activity to Azure Application Insights'
