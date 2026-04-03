@@ -30,7 +30,7 @@ jobs:
 
     - uses: nuget/setup-nuget@v1
       with:
-        nuget-version: 'latest'
+        nuget-version: '6.8.0'
 
     - name: Copy License
       shell: pwsh
