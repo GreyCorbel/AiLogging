@@ -26,15 +26,22 @@ jobs:
     steps:
     - name: Checkout
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
-    - name: Build
+    - uses: nuget/setup-nuget@v1
+      with:
+        nuget-version: 'latest'
+
+    - name: Copy License
       shell: pwsh
       run: |
         $moduleName = $env:MODULE_NAME
         Copy-Item -Path "$env:GITHUB_WORKSPACE\LICENSE" -Destination "$env:GITHUB_WORKSPACE\Module\$moduleName\LICENSE.txt" -Force
-        "Building module"
-        &"$env:GITHUB_WORKSPACE\Workflow\BuildModule.ps1" -RootPath "$env:GITHUB_WORKSPACE" -ModuleName $moduleName
+
+    - name: Build Module
+      uses: GreyCorbel/PsModuleActions/build-module@v1
+      with:
+        module-name: ${{ env.MODULE_NAME }}
 
     - name: Install AzureSignTool
       shell: pwsh
@@ -44,7 +51,7 @@ jobs:
     - name: Sign files
       shell: pwsh
       run: |
-        $files = Get-ChildItem "$env:GITHUB_WORKSPACE\Module" -File -Recurse -Include *.ps1, *.ps1xml, *.psd1, *.psm1, *.pssc, *.psrc, *.cdxml
+        $files = Get-ChildItem "$env:GITHUB_WORKSPACE\Module\$env:MODULE_NAME" -File -Recurse -Include *.ps1, *.ps1xml, *.psd1, *.psm1, *.pssc, *.psrc, *.cdxml
         try {
             foreach ($file in $files) {
                 azuresigntool sign `
