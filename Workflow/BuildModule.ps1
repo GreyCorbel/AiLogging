@@ -77,3 +77,4 @@ if(Test-Path $manifestFile)
 {
     Update-Manifest -ManifestFile $manifestFile -AttributeName 'FunctionsToExport' -AttributeValue "@('$(($publicCommands -join "','"))')"
 }
+#endregion

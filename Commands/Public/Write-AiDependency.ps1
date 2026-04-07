@@ -104,7 +104,7 @@ function Write-AiDependency
     {   
         if($null -eq $Duration) {
             $start = $Start.ToUniversalTime()
-            $Duration = (Get-Date -AsUTC) - $Start
+            $Duration = ([DateTime]::UtcNow) - $Start
         }
         $dependencyData = new-object Microsoft.ApplicationInsights.DataContracts.DependencyTelemetry
         foreach($key in $Connection.telemetryMetadata.Keys) {$dependencyData.Properties[$Key] = $Connection.telemetryMetadata[$key]}
