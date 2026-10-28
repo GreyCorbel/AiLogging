@@ -14,18 +14,31 @@ It helps you replace ad-hoc text logs with structured telemetry that is easy to 
 
 ## Requirements
 
-- PowerShell 5.1+
-- PowerShell Core compatible (`CompatiblePSEditions = Core` in module manifest)
+- Windows PowerShell 5.1 or PowerShell 7+
 - Azure Application Insights connection string
+- Optional: [AadAuthenticationFactory](https://www.powershellgallery.com/packages/AadAuthenticationFactory) module for Entra ID (access token) authentication
 
 Set the connection string in environment variable `APPLICATIONINSIGHTS_CONNECTION_STRING`, or pass it directly to `Connect-AiLogger`.
+
+The module has no dependency on Application Insights SDK - telemetry is sent directly to Application Insights ingestion REST API (`<IngestionEndpoint>/v2.1/track`).
+
+## Authentication
+
+- **Instrumentation key** (default): instrumentation key from connection string identifies the target resource.
+- **Access token**: pass an `AadAuthenticationFactory` instance via `-Factory`. Each request then carries a bearer token for scope `https://monitor.azure.com//.default` (override via `-Scopes`). This is required when local authentication is disabled on Application Insights resource. Identity needs the `Monitoring Metrics Publisher` role on Application Insights resource. Connection string is still required, as it provides ingestion endpoint and instrumentation key.
+
+```powershell
+Import-Module AadAuthenticationFactory
+$factory = New-AadAuthenticationFactory -UseManagedIdentity -Name ManagedIdentityFactory
+$connection = Connect-AiLogger -Application 'myAutomationAccount' -Component 'MyRunbook' -Factory 'ManagedIdentityFactory'
+```
 
 ## Install / Import
 
 If you are using this repository directly, import the module manifest:
 
 ```powershell
-Import-Module .\Module\AiLogging\AiLogging.psd1 -Force
+Import-Module .\Module\AiLogging -Force
 ```
 
 ## Quick Start
@@ -132,4 +145,6 @@ catch {
 
 - Most commands default to the most recently created connection if `-Connection` is not provided.
 - Connection string is optional for `Connect-AiLogger`, but telemetry cannot be sent without it.
-- `Submit-AiData` should be called before process exit in short-lived scripts/runbooks to reduce telemetry loss.
+- Telemetry is buffered and sent when buffer reaches `-MaxBatchSize` items (default 500), or when telemetry is written and buffer is older than `-FlushIntervalSeconds` (default 30; use 0 to send every item immediately).
+- Transient failures (throttling, server errors, partially accepted batches) are retried up to 3 times.
+- `Submit-AiData` should be called before process exit in short-lived scripts/runbooks to avoid telemetry loss.

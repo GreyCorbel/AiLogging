@@ -102,28 +102,27 @@ function Write-AiDependency
     }
     Process
     {   
-        if($null -eq $Duration) {
-            $start = $Start.ToUniversalTime()
-            $Duration = ([DateTime]::UtcNow) - $Start
+        if(-not $PSBoundParameters.ContainsKey('Duration')) {
+            $Duration = ([DateTime]::UtcNow) - $Start.ToUniversalTime()
         }
-        $dependencyData = new-object Microsoft.ApplicationInsights.DataContracts.DependencyTelemetry
-        foreach($key in $Connection.telemetryMetadata.Keys) {$dependencyData.Properties[$Key] = $Connection.telemetryMetadata[$key]}
-        $dependencyData.Type=$DependencyType
-        $dependencyData.Name=$Name
-        $dependencyData.Timestamp=$Start
-        $dependencyData.Duration = $Duration
-        $dependencyData.Success = $Success
-        $dependencyData.Target = $Target
-        $dependencyData.Data = $Data
-        if($null -ne $ResultCode) {
-            $dependencyData.ResultCode = $ResultCode
+        $baseData = [ordered]@{
+            id = [Guid]::NewGuid().ToString('N').Substring(0, 16)
+            name = $Name
+            type = $DependencyType
+            target = $Target
+            data = $Data
+            duration = $Duration.ToString('c', [System.Globalization.CultureInfo]::InvariantCulture)
+            success = $Success
+        }
+        if(-not [string]::IsNullOrEmpty($ResultCode)) {
+            $baseData['resultCode'] = $ResultCode
         }
         if($null -ne $Metrics) {
-            foreach($key in $Metrics.Keys) {
-                $dependencyData.Metrics[$Key] = $Metrics[$key]
-            }
+            $baseData['measurements'] = $Metrics
         }
-        Write-Verbose "Writing dependency: Name = $Name, Type = $DependencyType, Start = $start, Duration = $Duration, Success = $Success,  Target = $Target, Data = $Data"
-        $Connection.TrackDependency($dependencyData)
+        $envelope = New-AiEnvelope -Connection $Connection -TelemetryType RemoteDependency -BaseData $baseData -Timestamp $Start
+
+        Write-Verbose "Writing dependency: Name = $Name, Type = $DependencyType, Start = $Start, Duration = $Duration, Success = $Success,  Target = $Target, Data = $Data"
+        Add-AiTelemetry -Connection $Connection -Envelope $envelope
     }
 }

@@ -11,10 +11,10 @@
 RootModule = 'AiLogging.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.0.18'
+ModuleVersion = '3.0.0'
 
 # Supported PSEditions
-CompatiblePSEditions = @('Core')
+CompatiblePSEditions = @('Core','Desktop')
 
 # ID used to uniquely identify this module
 GUID = 'e8ce4aca-bee4-46b8-b0f2-8941ade5abf3'
@@ -53,8 +53,7 @@ PowerShellVersion = '5.1'
 # RequiredModules = @()
 
 # Assemblies that must be loaded prior to importing this module
-# PS Core has this depencency included out of box
-# RequiredAssemblies = @('Microsoft.ApplicationInsights')
+# RequiredAssemblies = @()
 
 # Script files (.ps1) that are run in the caller's environment prior to importing this module.
 # ScriptsToProcess = @()
@@ -107,6 +106,7 @@ PrivateData = @{
 
         # ReleaseNotes of this module
         # ReleaseNotes = ''
+        ExternalModuleDependencies = @('AadAuthenticationFactory')
 
     } # End of PSData hashtable
 
@@ -119,6 +119,10 @@ PrivateData = @{
 # DefaultCommandPrefix = ''
 
 }
+
+
+
+
 
 
 

@@ -55,18 +55,11 @@ Function Write-AiEvent
     }
     Process
     {   
-    
-        $data = new-object Microsoft.ApplicationInsights.DataContracts.EventTelemetry($EventName)
-
-        if($null -ne $Metadata) {
-            foreach($key in $Metadata.Keys) {$data.Properties[$Key] = $Metadata[$key]}
-        }
-        if($null -ne $Metrics) {
-            foreach($key in $Metrics.Keys) {$data.Metrics[$Key] = $Metrics[$key]}
-        }
-        foreach($key in $Connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $Connection.telemetryMetadata[$key]}
+        $baseData = [ordered]@{ name = $EventName }
+        if($null -ne $Metrics) { $baseData['measurements'] = $Metrics }
+        $envelope = New-AiEnvelope -Connection $Connection -TelemetryType Event -BaseData $baseData -Metadata $Metadata
 
         Write-Verbose "AiLogger: Writing event $EventName"
-        $Connection.TrackEvent($data)
+        Add-AiTelemetry -Connection $Connection -Envelope $envelope
     }
 }

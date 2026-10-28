@@ -60,16 +60,32 @@ Function Write-AiException
     }
     Process
     {   
-        $data = new-object Microsoft.ApplicationInsights.DataContracts.ExceptionTelemetry($Exception)
-        if($null -ne $Metadata) {
-            foreach($key in $Metadata.Keys) {$data.Properties[$Key] = $Metadata[$key]}
+        $exceptions = New-Object System.Collections.Generic.List[object]
+        $current = $Exception
+        $outerId = 0
+        while($null -ne $current)
+        {
+            $id = $current.GetHashCode()
+            $stack = "$($current.StackTrace)"
+            $exceptions.Add([ordered]@{
+                id = $id
+                outerId = $outerId
+                typeName = $current.GetType().FullName
+                message = "$($current.Message)"
+                hasFullStack = $true
+                stack = $stack.Substring(0, [Math]::Min($stack.Length, 32768))
+            })
+            $outerId = $id
+            $current = $current.InnerException
         }
-        if($null -ne $Metrics) {
-            foreach($key in $Metrics.Keys) {$data.Metrics[$Key] = $Metrics[$key]}
+        $baseData = [ordered]@{
+            exceptions = $exceptions.ToArray()
+            severityLevel = 'Error'
         }
-        foreach($key in $Connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $Connection.telemetryMetadata[$key]}
+        if($null -ne $Metrics) { $baseData['measurements'] = $Metrics }
+        $envelope = New-AiEnvelope -Connection $Connection -TelemetryType Exception -BaseData $baseData -Metadata $Metadata
 
         Write-Verbose "AiLogger: Writing exception $($Exception.Message)"
-        $Connection.TrackException($data)
+        Add-AiTelemetry -Connection $Connection -Envelope $envelope
     }
 }

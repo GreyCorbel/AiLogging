@@ -59,12 +59,11 @@ function Add-AiMetric {
     )
     
     process {
-        if(-not $Metrics.TryAdd($Name, $Value)) {
-            if($Force) {
-                $Metrics[$Name] = $Value
-            } else {
-                Write-Warning "Metric with name $Name already exists. Use -Force to overwrite"
-            }
+        if($Metrics.ContainsKey($Name) -and -not $Force) {
+            Write-Warning "Metric with name $Name already exists. Use -Force to overwrite"
+        }
+        else {
+            $Metrics[$Name] = $Value
         }
         if($PassThrough) {
             $Metrics

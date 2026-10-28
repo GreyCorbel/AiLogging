@@ -43,7 +43,8 @@ Function Write-AiTrace
             #Message to be traced
         $Message,
         [Parameter()]
-        [Microsoft.ApplicationInsights.DataContracts.SeverityLevel]
+        [ValidateSet('Verbose','Information','Warning','Error','Critical')]
+        [string]
             #Severity of message sent
         $Severity='Information',
         [Parameter()]
@@ -61,13 +62,13 @@ Function Write-AiTrace
     }
     Process
     {   
-        $data = new-object Microsoft.ApplicationInsights.DataContracts.TraceTelemetry($Message, $Severity)
-        if($null -ne $Metadata) {
-            foreach($key in $Metadata.Keys) {$data.Properties[$Key] = $Metadata[$key]}
+        $baseData = [ordered]@{
+            message = $Message
+            severityLevel = $Severity
         }
-        foreach($key in $connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $connection.telemetryMetadata[$key]}
+        $envelope = New-AiEnvelope -Connection $Connection -TelemetryType Message -BaseData $baseData -Metadata $Metadata
 
         Write-Verbose "AiLogger: Writing trace $Severity`: $Message"
-        $connection.TrackTrace($data)
+        Add-AiTelemetry -Connection $Connection -Envelope $envelope
     }
 }

@@ -5,10 +5,10 @@ function Get-AiConnection {
 
     .DESCRIPTION
         Returns the last connection created by Connect-AiLogger from module scope.
-        Use this when you want to inspect or reuse the active telemetry client.
+        Use this when you want to inspect or reuse the active telemetry connection.
 
     .OUTPUTS
-        Microsoft.ApplicationInsights.TelemetryClient
+        AiLogging.Connection
 
     .EXAMPLE
         Get-AiConnection

@@ -5,10 +5,17 @@ function Connect-AiLogger
         Creates an Application Insights telemetry connection.
 
     .DESCRIPTION
-        Creates a telemetry client for Application Insights, configures default metadata,
-        and stores the client as the most recently created connection used by other commands.
+        Creates a connection to Application Insights, configures default metadata,
+        and stores the connection as the most recently created connection used by other commands.
+        Telemetry is buffered and sent to Application Insights ingestion REST API.
         If -ConnectionString is omitted, the command reads APPLICATIONINSIGHTS_CONNECTION_STRING
         from the current environment.
+
+        By default, telemetry is authenticated by instrumentation key from connection string.
+        When -Factory is specified, each request additionally carries an Entra ID access token
+        obtained from the AadAuthenticationFactory module (required when local authentication
+        is disabled on Application Insights resource). The identity needs the
+        'Monitoring Metrics Publisher' role on the Application Insights resource.
 
     .PARAMETER ConnectionString
         Application Insights connection string. When omitted, the command tries to use the
@@ -29,8 +36,22 @@ function Connect-AiLogger
     .PARAMETER DefaultMetadata
         Additional metadata to attach to every telemetry item sent through the connection.
 
+    .PARAMETER Factory
+        Optional AadAuthenticationFactory instance (created by New-AadAuthenticationFactory) used
+        to obtain access tokens. When omitted, instrumentation key authentication is used.
+
+    .PARAMETER Scopes
+        Scopes requested from Factory. Defaults to https://monitor.azure.com//.default
+
+    .PARAMETER MaxBatchSize
+        Number of buffered telemetry items that triggers sending. Defaults to 500.
+
+    .PARAMETER FlushIntervalSeconds
+        Max age of buffered telemetry, checked whenever telemetry is written. Defaults to 30 seconds.
+        Use 0 to send every telemetry item immediately.
+
     .OUTPUTS
-        Microsoft.ApplicationInsights.TelemetryClient
+        AiLogging.Connection
 
     .EXAMPLE
         Connect-AiLogger -Application 'myAutomationAccount' -Component 'MyRunbook'
@@ -42,6 +63,12 @@ function Connect-AiLogger
         Connect-AiLogger -ConnectionString $env:APPLICATIONINSIGHTS_CONNECTION_STRING -Application 'Orders' -Component 'Worker' -Role 'HybridWorker' -Instance $env:COMPUTERNAME -DefaultMetadata $metadata
 
         Creates a connection with explicit role and default metadata.
+
+    .EXAMPLE
+        $factory = New-AadAuthenticationFactory -UseManagedIdentity
+        Connect-AiLogger -Application 'Orders' -Component 'Worker' -Factory $factory
+
+        Creates a connection that authenticates telemetry with access token of managed identity.
     #>
     param
     (
@@ -73,18 +100,33 @@ function Connect-AiLogger
         $Instance,
         [System.Collections.Generic.Dictionary[String,String]]
         #Additional metadata to be added to each emited telemetry
-        $DefaultMetadata
+        $DefaultMetadata,
+        [Parameter()]
+            #AadAuthenticationFactory instance (or name) used to obtain access tokens for ingestion
+            #When not specified, instrumentation key authentication is used
+        $Factory,
+        [Parameter()]
+        [string[]]
+            #Scopes requested when obtaining access token from Factory
+        $Scopes = @('https://monitor.azure.com//.default'),
+        [Parameter()]
+        [ValidateRange(1, 1000)]
+        [int]
+            #Max number of telemetry items buffered before they are sent
+        $MaxBatchSize = 500,
+        [Parameter()]
+        [ValidateRange(0, 3600)]
+        [int]
+            #Max age in seconds of buffered telemetry; checked when new telemetry is written
+            #0 means that every telemetry item is sent immediately
+        $FlushIntervalSeconds = 30
     )
 
-    begin
-    {
-
-    }
     process
     {
-        if($null -ne $script:LastCreatedAiLogger) {$script:LastCreatedAiLogger.TelemetryConfiguration.Dispose()}
+        #deliver anything still buffered on previous connection
+        if($null -ne $script:LastCreatedAiLogger) { Send-AiTelemetry -Connection $script:LastCreatedAiLogger }
 
-        $config = [Microsoft.ApplicationInsights.Extensibility.TelemetryConfiguration]::CreateDefault()
         if([string]::IsNullOrEmpty($ConnectionString))
         {
             #try to load connection string from environment variable
@@ -93,43 +135,48 @@ function Connect-AiLogger
         if([string]::IsNullOrEmpty($ConnectionString))
         {
             Write-Warning 'Connection string was not provided and no environment variable APPLICATIONINSIGHTS_CONNECTION_STRING was found'
+            $ConnectionString = ''
         }
-        else {
-            $config.ConnectionString = $ConnectionString
+        $parsed = ConvertFrom-AiConnectionString -ConnectionString $ConnectionString
+        $script:AiSdkVersion = "ailogging-ps:$($MyInvocation.MyCommand.Module.Version)"
+
+        if($null -ne $Factory -and $null -eq (Get-Command Get-AadToken -ErrorAction SilentlyContinue))
+        {
+            throw 'AadAuthenticationFactory module is required for token based authentication. Install it via Install-Module AadAuthenticationFactory'
         }
-        
+
         #setup base metadata
-        $client = new-object Microsoft.ApplicationInsights.TelemetryClient($config)
-        $client | Add-Member -MemberType NoteProperty -Name TelemetryMetadata -Value (New-Object 'System.Collections.Generic.Dictionary[String,String]')
-        $client.telemetryMetadata['Application']=$Application
-        $client.telemetryMetadata['Component']=$Component
+        $metadata = New-Object 'System.Collections.Generic.Dictionary[String,String]'
+        $metadata['Application'] = $Application
+        $metadata['Component'] = $Component
         if($null -ne $DefaultMetadata)
         {
             foreach($key in $DefaultMetadata.Keys)
             {
-                $client.telemetryMetadata.TryAdd($key, $DefaultMetadata[$key]) | Out-Null
+                if(-not $metadata.ContainsKey($key)) { $metadata[$key] = $DefaultMetadata[$key] }
             }
         }
 
-        #setup metrics
-        $client | Add-Member -MemberType NoteProperty -Name MetricNamespace -Value "$Application`.$Component"
-
-        #setup rolename and roleInstance
-        $telemetryInitializer = new-object CloudRoleNameTelemetryInitializer($Role, $Instance)
-
-        $config.TelemetryInitializers.Add($telemetryInitializer) | Out-Null
-        if(-not [string]::IsNullOrEmpty($Role))
-        {
-            $client.Context.Cloud.RoleName=$Role
+        $connection = [PSCustomObject]@{
+            PSTypeName = 'AiLogging.Connection'
+            InstrumentationKey = $parsed.InstrumentationKey
+            IngestionEndpoint = $parsed.IngestionEndpoint
+            TrackUri = "$($parsed.IngestionEndpoint)/v2.1/track"
+            AuthenticationFactory = $Factory
+            Scopes = $Scopes
+            TelemetryMetadata = $metadata
+            MetricNamespace = "$Application`.$Component"
+            RoleName = $(if([string]::IsNullOrEmpty($Role)) {"$Application`.$Component"} else {$Role})
+            RoleInstance = $(if([string]::IsNullOrEmpty($Instance)) {[Environment]::MachineName} else {$Instance})
+            MaxBatchSize = $MaxBatchSize
+            FlushInterval = [TimeSpan]::FromSeconds($FlushIntervalSeconds)
+            LastFlush = [DateTime]::UtcNow
+            Buffer = New-Object 'System.Collections.Generic.List[object]'
         }
-        else {
-            $client.Context.Cloud.RoleName = "$Application`.$Component"
-        }    
-        if(-not [string]::IsNullOrEmpty($Instance)) {
-            $client.Context.Cloud.RoleInstance = $Instance
-        }
-        $script:LastCreatedAiLogger = $client
+
+        $script:LastCreatedAiLogger = $connection
         Write-Verbose ( ($ConnectionString.Split(';') | Where-Object{$_ -notlike 'InstrumentationKey=*'}) -join ';')
-        $client
+        Write-Verbose "AiLogger: Authentication: $(if($null -ne $Factory) {'access token'} else {'instrumentation key'})"
+        $connection
     }
 }

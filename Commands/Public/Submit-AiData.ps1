@@ -5,8 +5,8 @@ Function Submit-AiData
         Flushes buffered telemetry to Application Insights.
 
     .DESCRIPTION
-        Flushes any buffered telemetry for the specified connection and waits briefly to allow
-        the telemetry channel to send pending data. This is useful in short-lived scripts and runbooks.
+        Sends any buffered telemetry for the specified connection to Application Insights
+        and waits for the send to complete. Call this before short-lived scripts and runbooks exit.
 
     .PARAMETER Connection
         Telemetry connection created by Connect-AiLogger. When omitted, the most recently created
@@ -31,7 +31,6 @@ Function Submit-AiData
     Process
     {   
         Write-Verbose "AiLogger: Flushing buffered data to Application Insights"
-        $Connection.Flush()
-        Start-Sleep -Seconds 1 # Allow time for flush to complete
+        Send-AiTelemetry -Connection $Connection
     }
 }

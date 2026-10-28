@@ -59,12 +59,11 @@ function Add-AiMetadata {
     )
     
     process {
-        if(-not $metadata.TryAdd($Name, $Value) ) {
-            if($Force) {
-                $metadata[$Name] = $Value
-            } else {
-                Write-Warning "Metadata with name $Name already exists. Use -Force to overwrite"
-            }
+        if($metadata.ContainsKey($Name) -and -not $Force) {
+            Write-Warning "Metadata with name $Name already exists. Use -Force to overwrite"
+        }
+        else {
+            $metadata[$Name] = $Value
         }
         if($PassThrough) {
             $metadata

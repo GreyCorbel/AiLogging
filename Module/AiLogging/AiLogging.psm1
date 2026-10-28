@@ -60,12 +60,11 @@ function Add-AiMetadata {
     )
     
     process {
-        if(-not $metadata.TryAdd($Name, $Value) ) {
-            if($Force) {
-                $metadata[$Name] = $Value
-            } else {
-                Write-Warning "Metadata with name $Name already exists. Use -Force to overwrite"
-            }
+        if($metadata.ContainsKey($Name) -and -not $Force) {
+            Write-Warning "Metadata with name $Name already exists. Use -Force to overwrite"
+        }
+        else {
+            $metadata[$Name] = $Value
         }
         if($PassThrough) {
             $metadata
@@ -133,12 +132,11 @@ function Add-AiMetric {
     )
     
     process {
-        if(-not $Metrics.TryAdd($Name, $Value)) {
-            if($Force) {
-                $Metrics[$Name] = $Value
-            } else {
-                Write-Warning "Metric with name $Name already exists. Use -Force to overwrite"
-            }
+        if($Metrics.ContainsKey($Name) -and -not $Force) {
+            Write-Warning "Metric with name $Name already exists. Use -Force to overwrite"
+        }
+        else {
+            $Metrics[$Name] = $Value
         }
         if($PassThrough) {
             $Metrics
@@ -152,10 +150,17 @@ function Connect-AiLogger
         Creates an Application Insights telemetry connection.
 
     .DESCRIPTION
-        Creates a telemetry client for Application Insights, configures default metadata,
-        and stores the client as the most recently created connection used by other commands.
+        Creates a connection to Application Insights, configures default metadata,
+        and stores the connection as the most recently created connection used by other commands.
+        Telemetry is buffered and sent to Application Insights ingestion REST API.
         If -ConnectionString is omitted, the command reads APPLICATIONINSIGHTS_CONNECTION_STRING
         from the current environment.
+
+        By default, telemetry is authenticated by instrumentation key from connection string.
+        When -Factory is specified, each request additionally carries an Entra ID access token
+        obtained from the AadAuthenticationFactory module (required when local authentication
+        is disabled on Application Insights resource). The identity needs the
+        'Monitoring Metrics Publisher' role on the Application Insights resource.
 
     .PARAMETER ConnectionString
         Application Insights connection string. When omitted, the command tries to use the
@@ -176,8 +181,22 @@ function Connect-AiLogger
     .PARAMETER DefaultMetadata
         Additional metadata to attach to every telemetry item sent through the connection.
 
+    .PARAMETER Factory
+        Optional AadAuthenticationFactory instance (created by New-AadAuthenticationFactory) used
+        to obtain access tokens. When omitted, instrumentation key authentication is used.
+
+    .PARAMETER Scopes
+        Scopes requested from Factory. Defaults to https://monitor.azure.com//.default
+
+    .PARAMETER MaxBatchSize
+        Number of buffered telemetry items that triggers sending. Defaults to 500.
+
+    .PARAMETER FlushIntervalSeconds
+        Max age of buffered telemetry, checked whenever telemetry is written. Defaults to 30 seconds.
+        Use 0 to send every telemetry item immediately.
+
     .OUTPUTS
-        Microsoft.ApplicationInsights.TelemetryClient
+        AiLogging.Connection
 
     .EXAMPLE
         Connect-AiLogger -Application 'myAutomationAccount' -Component 'MyRunbook'
@@ -189,6 +208,12 @@ function Connect-AiLogger
         Connect-AiLogger -ConnectionString $env:APPLICATIONINSIGHTS_CONNECTION_STRING -Application 'Orders' -Component 'Worker' -Role 'HybridWorker' -Instance $env:COMPUTERNAME -DefaultMetadata $metadata
 
         Creates a connection with explicit role and default metadata.
+
+    .EXAMPLE
+        $factory = New-AadAuthenticationFactory -UseManagedIdentity
+        Connect-AiLogger -Application 'Orders' -Component 'Worker' -Factory $factory
+
+        Creates a connection that authenticates telemetry with access token of managed identity.
     #>
     param
     (
@@ -220,18 +245,33 @@ function Connect-AiLogger
         $Instance,
         [System.Collections.Generic.Dictionary[String,String]]
         #Additional metadata to be added to each emited telemetry
-        $DefaultMetadata
+        $DefaultMetadata,
+        [Parameter()]
+            #AadAuthenticationFactory instance (or name) used to obtain access tokens for ingestion
+            #When not specified, instrumentation key authentication is used
+        $Factory,
+        [Parameter()]
+        [string[]]
+            #Scopes requested when obtaining access token from Factory
+        $Scopes = @('https://monitor.azure.com//.default'),
+        [Parameter()]
+        [ValidateRange(1, 1000)]
+        [int]
+            #Max number of telemetry items buffered before they are sent
+        $MaxBatchSize = 500,
+        [Parameter()]
+        [ValidateRange(0, 3600)]
+        [int]
+            #Max age in seconds of buffered telemetry; checked when new telemetry is written
+            #0 means that every telemetry item is sent immediately
+        $FlushIntervalSeconds = 30
     )
 
-    begin
-    {
-
-    }
     process
     {
-        if($null -ne $script:LastCreatedAiLogger) {$script:LastCreatedAiLogger.TelemetryConfiguration.Dispose()}
+        #deliver anything still buffered on previous connection
+        if($null -ne $script:LastCreatedAiLogger) { Send-AiTelemetry -Connection $script:LastCreatedAiLogger }
 
-        $config = [Microsoft.ApplicationInsights.Extensibility.TelemetryConfiguration]::CreateDefault()
         if([string]::IsNullOrEmpty($ConnectionString))
         {
             #try to load connection string from environment variable
@@ -240,44 +280,49 @@ function Connect-AiLogger
         if([string]::IsNullOrEmpty($ConnectionString))
         {
             Write-Warning 'Connection string was not provided and no environment variable APPLICATIONINSIGHTS_CONNECTION_STRING was found'
+            $ConnectionString = ''
         }
-        else {
-            $config.ConnectionString = $ConnectionString
+        $parsed = ConvertFrom-AiConnectionString -ConnectionString $ConnectionString
+        $script:AiSdkVersion = "ailogging-ps:$($MyInvocation.MyCommand.Module.Version)"
+
+        if($null -ne $Factory -and $null -eq (Get-Command Get-AadToken -ErrorAction SilentlyContinue))
+        {
+            throw 'AadAuthenticationFactory module is required for token based authentication. Install it via Install-Module AadAuthenticationFactory'
         }
-        
+
         #setup base metadata
-        $client = new-object Microsoft.ApplicationInsights.TelemetryClient($config)
-        $client | Add-Member -MemberType NoteProperty -Name TelemetryMetadata -Value (New-Object 'System.Collections.Generic.Dictionary[String,String]')
-        $client.telemetryMetadata['Application']=$Application
-        $client.telemetryMetadata['Component']=$Component
+        $metadata = New-Object 'System.Collections.Generic.Dictionary[String,String]'
+        $metadata['Application'] = $Application
+        $metadata['Component'] = $Component
         if($null -ne $DefaultMetadata)
         {
             foreach($key in $DefaultMetadata.Keys)
             {
-                $client.telemetryMetadata.TryAdd($key, $DefaultMetadata[$key]) | Out-Null
+                if(-not $metadata.ContainsKey($key)) { $metadata[$key] = $DefaultMetadata[$key] }
             }
         }
 
-        #setup metrics
-        $client | Add-Member -MemberType NoteProperty -Name MetricNamespace -Value "$Application`.$Component"
-
-        #setup rolename and roleInstance
-        $telemetryInitializer = new-object CloudRoleNameTelemetryInitializer($Role, $Instance)
-
-        $config.TelemetryInitializers.Add($telemetryInitializer) | Out-Null
-        if(-not [string]::IsNullOrEmpty($Role))
-        {
-            $client.Context.Cloud.RoleName=$Role
+        $connection = [PSCustomObject]@{
+            PSTypeName = 'AiLogging.Connection'
+            InstrumentationKey = $parsed.InstrumentationKey
+            IngestionEndpoint = $parsed.IngestionEndpoint
+            TrackUri = "$($parsed.IngestionEndpoint)/v2.1/track"
+            AuthenticationFactory = $Factory
+            Scopes = $Scopes
+            TelemetryMetadata = $metadata
+            MetricNamespace = "$Application`.$Component"
+            RoleName = $(if([string]::IsNullOrEmpty($Role)) {"$Application`.$Component"} else {$Role})
+            RoleInstance = $(if([string]::IsNullOrEmpty($Instance)) {[Environment]::MachineName} else {$Instance})
+            MaxBatchSize = $MaxBatchSize
+            FlushInterval = [TimeSpan]::FromSeconds($FlushIntervalSeconds)
+            LastFlush = [DateTime]::UtcNow
+            Buffer = New-Object 'System.Collections.Generic.List[object]'
         }
-        else {
-            $client.Context.Cloud.RoleName = "$Application`.$Component"
-        }    
-        if(-not [string]::IsNullOrEmpty($Instance)) {
-            $client.Context.Cloud.RoleInstance = $Instance
-        }
-        $script:LastCreatedAiLogger = $client
+
+        $script:LastCreatedAiLogger = $connection
         Write-Verbose ( ($ConnectionString.Split(';') | Where-Object{$_ -notlike 'InstrumentationKey=*'}) -join ';')
-        $client
+        Write-Verbose "AiLogger: Authentication: $(if($null -ne $Factory) {'access token'} else {'instrumentation key'})"
+        $connection
     }
 }
 function Get-AiConnection {
@@ -287,10 +332,10 @@ function Get-AiConnection {
 
     .DESCRIPTION
         Returns the last connection created by Connect-AiLogger from module scope.
-        Use this when you want to inspect or reuse the active telemetry client.
+        Use this when you want to inspect or reuse the active telemetry connection.
 
     .OUTPUTS
-        Microsoft.ApplicationInsights.TelemetryClient
+        AiLogging.Connection
 
     .EXAMPLE
         Get-AiConnection
@@ -465,8 +510,8 @@ Function Submit-AiData
         Flushes buffered telemetry to Application Insights.
 
     .DESCRIPTION
-        Flushes any buffered telemetry for the specified connection and waits briefly to allow
-        the telemetry channel to send pending data. This is useful in short-lived scripts and runbooks.
+        Sends any buffered telemetry for the specified connection to Application Insights
+        and waits for the send to complete. Call this before short-lived scripts and runbooks exit.
 
     .PARAMETER Connection
         Telemetry connection created by Connect-AiLogger. When omitted, the most recently created
@@ -491,8 +536,7 @@ Function Submit-AiData
     Process
     {   
         Write-Verbose "AiLogger: Flushing buffered data to Application Insights"
-        $Connection.Flush()
-        Start-Sleep -Seconds 1 # Allow time for flush to complete
+        Send-AiTelemetry -Connection $Connection
     }
 }
 function Write-AiDependency
@@ -599,29 +643,28 @@ function Write-AiDependency
     }
     Process
     {   
-        if($null -eq $Duration) {
-            $start = $Start.ToUniversalTime()
-            $Duration = ([DateTime]::UtcNow) - $Start
+        if(-not $PSBoundParameters.ContainsKey('Duration')) {
+            $Duration = ([DateTime]::UtcNow) - $Start.ToUniversalTime()
         }
-        $dependencyData = new-object Microsoft.ApplicationInsights.DataContracts.DependencyTelemetry
-        foreach($key in $Connection.telemetryMetadata.Keys) {$dependencyData.Properties[$Key] = $Connection.telemetryMetadata[$key]}
-        $dependencyData.Type=$DependencyType
-        $dependencyData.Name=$Name
-        $dependencyData.Timestamp=$Start
-        $dependencyData.Duration = $Duration
-        $dependencyData.Success = $Success
-        $dependencyData.Target = $Target
-        $dependencyData.Data = $Data
-        if($null -ne $ResultCode) {
-            $dependencyData.ResultCode = $ResultCode
+        $baseData = [ordered]@{
+            id = [Guid]::NewGuid().ToString('N').Substring(0, 16)
+            name = $Name
+            type = $DependencyType
+            target = $Target
+            data = $Data
+            duration = $Duration.ToString('c', [System.Globalization.CultureInfo]::InvariantCulture)
+            success = $Success
+        }
+        if(-not [string]::IsNullOrEmpty($ResultCode)) {
+            $baseData['resultCode'] = $ResultCode
         }
         if($null -ne $Metrics) {
-            foreach($key in $Metrics.Keys) {
-                $dependencyData.Metrics[$Key] = $Metrics[$key]
-            }
+            $baseData['measurements'] = $Metrics
         }
-        Write-Verbose "Writing dependency: Name = $Name, Type = $DependencyType, Start = $start, Duration = $Duration, Success = $Success,  Target = $Target, Data = $Data"
-        $Connection.TrackDependency($dependencyData)
+        $envelope = New-AiEnvelope -Connection $Connection -TelemetryType RemoteDependency -BaseData $baseData -Timestamp $Start
+
+        Write-Verbose "Writing dependency: Name = $Name, Type = $DependencyType, Start = $Start, Duration = $Duration, Success = $Success,  Target = $Target, Data = $Data"
+        Add-AiTelemetry -Connection $Connection -Envelope $envelope
     }
 }
 Function Write-AiEvent
@@ -681,19 +724,12 @@ Function Write-AiEvent
     }
     Process
     {   
-    
-        $data = new-object Microsoft.ApplicationInsights.DataContracts.EventTelemetry($EventName)
-
-        if($null -ne $Metadata) {
-            foreach($key in $Metadata.Keys) {$data.Properties[$Key] = $Metadata[$key]}
-        }
-        if($null -ne $Metrics) {
-            foreach($key in $Metrics.Keys) {$data.Metrics[$Key] = $Metrics[$key]}
-        }
-        foreach($key in $Connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $Connection.telemetryMetadata[$key]}
+        $baseData = [ordered]@{ name = $EventName }
+        if($null -ne $Metrics) { $baseData['measurements'] = $Metrics }
+        $envelope = New-AiEnvelope -Connection $Connection -TelemetryType Event -BaseData $baseData -Metadata $Metadata
 
         Write-Verbose "AiLogger: Writing event $EventName"
-        $Connection.TrackEvent($data)
+        Add-AiTelemetry -Connection $Connection -Envelope $envelope
     }
 }
 Function Write-AiException
@@ -758,17 +794,33 @@ Function Write-AiException
     }
     Process
     {   
-        $data = new-object Microsoft.ApplicationInsights.DataContracts.ExceptionTelemetry($Exception)
-        if($null -ne $Metadata) {
-            foreach($key in $Metadata.Keys) {$data.Properties[$Key] = $Metadata[$key]}
+        $exceptions = New-Object System.Collections.Generic.List[object]
+        $current = $Exception
+        $outerId = 0
+        while($null -ne $current)
+        {
+            $id = $current.GetHashCode()
+            $stack = "$($current.StackTrace)"
+            $exceptions.Add([ordered]@{
+                id = $id
+                outerId = $outerId
+                typeName = $current.GetType().FullName
+                message = "$($current.Message)"
+                hasFullStack = $true
+                stack = $stack.Substring(0, [Math]::Min($stack.Length, 32768))
+            })
+            $outerId = $id
+            $current = $current.InnerException
         }
-        if($null -ne $Metrics) {
-            foreach($key in $Metrics.Keys) {$data.Metrics[$Key] = $Metrics[$key]}
+        $baseData = [ordered]@{
+            exceptions = $exceptions.ToArray()
+            severityLevel = 'Error'
         }
-        foreach($key in $Connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $Connection.telemetryMetadata[$key]}
+        if($null -ne $Metrics) { $baseData['measurements'] = $Metrics }
+        $envelope = New-AiEnvelope -Connection $Connection -TelemetryType Exception -BaseData $baseData -Metadata $Metadata
 
         Write-Verbose "AiLogger: Writing exception $($Exception.Message)"
-        $Connection.TrackException($data)
+        Add-AiTelemetry -Connection $Connection -Envelope $envelope
     }
 }
 Function Write-AiMetric
@@ -823,16 +875,21 @@ Function Write-AiMetric
     {   
         foreach($metricKey in $metrics.Keys)
         {
-            $data = new-object Microsoft.ApplicationInsights.DataContracts.MetricTelemetry($metricKey, $Metrics[$metricKey])
-            $data.MetricNamespace = $Connection.MetricNamespace
-
-            if($null -ne $Metadata) {
-                foreach($key in $Metadata.Keys) {$data.Properties[$Key] = $Metadata[$key]}
+            $baseData = [ordered]@{
+                metrics = @(
+                    [ordered]@{
+                        ns = $Connection.MetricNamespace
+                        name = $metricKey
+                        kind = 0
+                        value = $Metrics[$metricKey]
+                        count = 1
+                    }
+                )
             }
-            foreach($key in $Connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $Connection.telemetryMetadata[$key]}
+            $envelope = New-AiEnvelope -Connection $Connection -TelemetryType Metric -BaseData $baseData -Metadata $Metadata
 
             Write-Verbose "AiLogger: Writing metric $metricKey = $($metrics[$metricKey])"
-            $Connection.TrackMetric($data)
+            Add-AiTelemetry -Connection $Connection -Envelope $envelope
         }
     }
 }
@@ -881,7 +938,8 @@ Function Write-AiTrace
             #Message to be traced
         $Message,
         [Parameter()]
-        [Microsoft.ApplicationInsights.DataContracts.SeverityLevel]
+        [ValidateSet('Verbose','Information','Warning','Error','Critical')]
+        [string]
             #Severity of message sent
         $Severity='Information',
         [Parameter()]
@@ -899,24 +957,253 @@ Function Write-AiTrace
     }
     Process
     {   
-        $data = new-object Microsoft.ApplicationInsights.DataContracts.TraceTelemetry($Message, $Severity)
-        if($null -ne $Metadata) {
-            foreach($key in $Metadata.Keys) {$data.Properties[$Key] = $Metadata[$key]}
+        $baseData = [ordered]@{
+            message = $Message
+            severityLevel = $Severity
         }
-        foreach($key in $connection.telemetryMetadata.Keys) {$data.Properties[$Key] = $connection.telemetryMetadata[$key]}
+        $envelope = New-AiEnvelope -Connection $Connection -TelemetryType Message -BaseData $baseData -Metadata $Metadata
 
         Write-Verbose "AiLogger: Writing trace $Severity`: $Message"
-        $connection.TrackTrace($data)
+        Add-AiTelemetry -Connection $Connection -Envelope $envelope
     }
 }
 #endregion Public commands
 #region Internal commands
+function Add-AiTelemetry
+{
+    param
+    (
+        [Parameter(Mandatory)]
+        $Connection,
+        [Parameter(Mandatory)]
+        $Envelope
+    )
+
+    process
+    {
+        if($null -eq $Connection)
+        {
+            Write-Warning 'AiLogger: No connection available. Call Connect-AiLogger first.'
+            return
+        }
+        $Connection.Buffer.Add($Envelope)
+        if($Connection.Buffer.Count -ge $Connection.MaxBatchSize -or ([DateTime]::UtcNow - $Connection.LastFlush) -ge $Connection.FlushInterval)
+        {
+            Send-AiTelemetry -Connection $Connection
+        }
+    }
+}
+function ConvertFrom-AiConnectionString
+{
+    param
+    (
+        [Parameter(Mandatory)]
+        [string]$ConnectionString
+    )
+
+    process
+    {
+        $parts = @{}
+        foreach($segment in $ConnectionString.Split(';', [StringSplitOptions]::RemoveEmptyEntries))
+        {
+            $idx = $segment.IndexOf('=')
+            if($idx -lt 1) { continue }
+            $parts[$segment.Substring(0, $idx).Trim()] = $segment.Substring($idx + 1).Trim()
+        }
+
+        $endpoint = $parts['IngestionEndpoint']
+        if([string]::IsNullOrEmpty($endpoint))
+        {
+            if(-not [string]::IsNullOrEmpty($parts['EndpointSuffix']))
+            {
+                $prefix = if([string]::IsNullOrEmpty($parts['Location'])) {''} else {"$($parts['Location'])."}
+                $endpoint = "https://$($prefix)dc.$($parts['EndpointSuffix'])"
+            }
+            else
+            {
+                $endpoint = 'https://dc.services.visualstudio.com'
+            }
+        }
+
+        [PSCustomObject]@{
+            InstrumentationKey = $parts['InstrumentationKey']
+            IngestionEndpoint = $endpoint.TrimEnd('/')
+        }
+    }
+}
+function Get-AiAuthorizationHeader
+{
+    param
+    (
+        [Parameter(Mandatory)]
+        $Connection
+    )
+
+    process
+    {
+        if($null -eq $Connection.AuthenticationFactory) { return }
+        #factory caches and refreshes tokens as needed
+        $header = Get-AadToken -Factory $Connection.AuthenticationFactory -Scopes $Connection.Scopes -AsHashTable -ErrorAction Stop
+        $header['Authorization']
+    }
+}
 function Init
 {
-    Add-Type -AssemblyName Microsoft.ApplicationInsights
+    Add-Type -AssemblyName System.Net.Http
+    if($PSVersionTable.PSEdition -ne 'Core')
+    {
+        #Windows PowerShell on older .NET Framework may not offer TLS 1.2 by default, which ingestion endpoints require
+        $protocol = [Net.ServicePointManager]::SecurityProtocol
+        if([int]$protocol -ne 0 -and -not ($protocol -band [Net.SecurityProtocolType]::Tls12))
+        {
+            [Net.ServicePointManager]::SecurityProtocol = $protocol -bor [Net.SecurityProtocolType]::Tls12
+        }
+    }
+    $script:AiHttpClient = [System.Net.Http.HttpClient]::new()
+    $script:AiHttpClient.Timeout = [TimeSpan]::FromSeconds(30)
 
-    $typeData = Get-Content -Path $PSScriptRoot\Helpers\CloudRoleNameTelemetryInitializer.cs -Raw
-    Add-Type -TypeDefinition $typeData -ReferencedAssemblies Microsoft.ApplicationInsights
+    #try to deliver buffered telemetry when module is removed
+    $ExecutionContext.SessionState.Module.OnRemove = {
+        if($null -ne $script:LastCreatedAiLogger) { Send-AiTelemetry -Connection $script:LastCreatedAiLogger }
+        $script:AiHttpClient.Dispose()
+    }
+}
+function New-AiEnvelope
+{
+    param
+    (
+        [Parameter(Mandatory)]
+        $Connection,
+        [Parameter(Mandatory)]
+        [ValidateSet('Event','Message','Metric','RemoteDependency','Exception')]
+        [string]$TelemetryType,
+        [Parameter(Mandatory)]
+        [System.Collections.IDictionary]$BaseData,
+        [Parameter()]
+        [System.Collections.Generic.Dictionary[String,String]]$Metadata,
+        [Parameter()]
+        [DateTime]$Timestamp = [DateTime]::UtcNow
+    )
+
+    process
+    {
+        #default metadata first, then call-specific metadata overrides it
+        $properties = @{}
+        foreach($key in $Connection.TelemetryMetadata.Keys) { $properties[$key] = $Connection.TelemetryMetadata[$key] }
+        if($null -ne $Metadata)
+        {
+            foreach($key in $Metadata.Keys) { $properties[$key] = $Metadata[$key] }
+        }
+        $BaseData['ver'] = 2
+        $BaseData['properties'] = $properties
+
+        $tags = [ordered]@{
+            'ai.internal.sdkVersion' = $script:AiSdkVersion
+        }
+        if(-not [string]::IsNullOrEmpty($Connection.RoleName)) { $tags['ai.cloud.role'] = $Connection.RoleName }
+        if(-not [string]::IsNullOrEmpty($Connection.RoleInstance)) { $tags['ai.cloud.roleInstance'] = $Connection.RoleInstance }
+
+        $iKeyNoDashes = "$($Connection.InstrumentationKey)".Replace('-', '')
+        [ordered]@{
+            name = "Microsoft.ApplicationInsights.$iKeyNoDashes.$TelemetryType"
+            time = $Timestamp.ToUniversalTime().ToString('o', [System.Globalization.CultureInfo]::InvariantCulture)
+            iKey = $Connection.InstrumentationKey
+            tags = $tags
+            data = [ordered]@{
+                baseType = "$($TelemetryType)Data"
+                baseData = $BaseData
+            }
+        }
+    }
+}
+function Send-AiTelemetry
+{
+    param
+    (
+        [Parameter(Mandatory)]
+        $Connection
+    )
+
+    process
+    {
+        $Connection.LastFlush = [DateTime]::UtcNow
+        if($Connection.Buffer.Count -eq 0) { return }
+
+        $pending = $Connection.Buffer.ToArray()
+        $Connection.Buffer.Clear()
+
+        if([string]::IsNullOrEmpty($Connection.InstrumentationKey))
+        {
+            Write-Verbose "AiLogger: No instrumentation key configured, discarding $($pending.Count) telemetry item(s)"
+            return
+        }
+
+        $retriableCodes = @(408, 429, 439, 500, 502, 503, 504)
+        $maxAttempts = 3
+        for($attempt = 1; $attempt -le $maxAttempts; $attempt++)
+        {
+            $statusCode = 0
+            $responseBody = $null
+            try
+            {
+                $json = ConvertTo-Json -InputObject @($pending) -Depth 10 -Compress
+                $request = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::Post, $Connection.TrackUri)
+                $request.Content = [System.Net.Http.StringContent]::new($json, [System.Text.Encoding]::UTF8, 'application/json')
+                $authHeader = Get-AiAuthorizationHeader -Connection $Connection
+                if(-not [string]::IsNullOrEmpty($authHeader))
+                {
+                    [void]$request.Headers.TryAddWithoutValidation('Authorization', $authHeader)
+                }
+                Write-Verbose "AiLogger: Sending $($pending.Count) telemetry item(s) to $($Connection.TrackUri) (attempt $attempt)"
+                $response = $script:AiHttpClient.SendAsync($request).GetAwaiter().GetResult()
+                $statusCode = [int]$response.StatusCode
+                $responseBody = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                $response.Dispose()
+                $request.Dispose()
+            }
+            catch
+            {
+                Write-Verbose "AiLogger: Sending telemetry failed: $($_.Exception.Message)"
+            }
+
+            switch($statusCode)
+            {
+                200 {
+                    return
+                }
+                206 {
+                    $result = $responseBody | ConvertFrom-Json
+                    $retry = new-object System.Collections.Generic.List[object]
+                    foreach($err in $result.errors)
+                    {
+                        if($err.statusCode -in $retriableCodes) {
+                            $retry.Add($pending[$err.index])
+                        }
+                        else {
+                            Write-Warning "AiLogger: Telemetry item rejected: $($err.statusCode) $($err.message)"
+                        }
+                    }
+                    if($retry.Count -eq 0) { return }
+                    $pending = $retry.ToArray()
+                    break
+                }
+                {$_ -in 401, 403} {
+                    Write-Warning "AiLogger: Telemetry rejected with status $statusCode (authentication/authorization failure): $responseBody"
+                    return
+                }
+                {$_ -eq 0 -or $_ -in $retriableCodes} {
+                    Write-Verbose "AiLogger: Transient failure (status $statusCode)"
+                    break
+                }
+                default {
+                    Write-Warning "AiLogger: Telemetry rejected with status $statusCode`: $responseBody"
+                    return
+                }
+            }
+            if($attempt -lt $maxAttempts) { Start-Sleep -Seconds ([Math]::Pow(2, $attempt - 1)) }
+        }
+        Write-Warning "AiLogger: Failed to send $($pending.Count) telemetry item(s) after $maxAttempts attempts"
+    }
 }
 #endregion Internal commands
 #region Module initialization
