@@ -1,7 +1,7 @@
 name: Publish-AiLogging
 
 permissions:
-  contents: write
+  contents: read
   id-token: write
 on:
   push:
@@ -18,35 +18,21 @@ on:
         description: 'Publish to powershell gallery'
         required: false
         default: false
-      runner:
-        type: choice
-        description: 'Runner to use'
-        required: false
-        default: ubuntu-latest
-        options:
-          - ubuntu-latest
-          - windows-latest
 
 jobs:
   publishToGallery:
-    runs-on: ${{ inputs.runner || 'ubuntu-latest' }}
+    runs-on: windows-2022
     environment: release
     env:
       MODULE_NAME: AiLogging
       AZURE_TENANT_ID: ${{ vars.TENANTINTEGRATION_TENANTID }}
       AZURE_CLIENT_ID: ${{ vars.TENANTINTEGRATION_CLIENTID }}
-      SIGNING_ENDPOINT: weu.codesigning.azure.net
+      SIGNING_ENDPOINT: https://weu.codesigning.azure.net
       SIGNING_ACCOUNT: greycorbel
       SIGNING_PROFILE: greycorbel-signing
-      JSIGN_VERSION: '7.6'
 
     steps:
     - uses: actions/checkout@v4
-
-    - uses: actions/setup-java@v4
-      with:
-        distribution: temurin
-        java-version: '17'
 
     - name: Copy License
       shell: pwsh
@@ -66,33 +52,18 @@ jobs:
         allow-no-subscriptions: true
 
     - name: Sign module files with Artifact Signing
-      shell: pwsh
-      run: |
-        $ErrorActionPreference = 'Stop'
-        $jsign = Join-Path $env:RUNNER_TEMP 'jsign.jar'
-        Invoke-WebRequest -Uri "https://github.com/ebourg/jsign/releases/download/$env:JSIGN_VERSION/jsign-$env:JSIGN_VERSION.jar" -OutFile $jsign
+      uses: azure/artifact-signing-action@v2
+      with:
+        endpoint: ${{ env.SIGNING_ENDPOINT }}
+        signing-account-name: ${{ env.SIGNING_ACCOUNT }}
+        certificate-profile-name: ${{ env.SIGNING_PROFILE }}
+        files-folder: ${{ github.workspace }}\Module\${{ env.MODULE_NAME }}
+        files-folder-filter: ps1,ps1xml,psd1,psm1,pssc,psrc,cdxml
+        files-folder-recurse: true
+        file-digest: SHA256
+        timestamp-rfc3161: http://timestamp.acs.microsoft.com
+        timestamp-digest: SHA256
 
-        $env:SIGNING_TOKEN = az account get-access-token --resource https://codesigning.azure.net --query accessToken --output tsv
-        if($LASTEXITCODE -ne 0 -or [string]::IsNullOrEmpty($env:SIGNING_TOKEN)) { throw 'Failed to obtain access token for Artifact Signing' }
-        Write-Host "::add-mask::$env:SIGNING_TOKEN"
-
-        $files = Get-ChildItem -Path (Join-Path $env:GITHUB_WORKSPACE 'Module' $env:MODULE_NAME) -File -Recurse -Include *.ps1, *.ps1xml, *.psd1, *.psm1, *.pssc, *.psrc, *.cdxml
-        $fileList = Join-Path $env:RUNNER_TEMP 'files-to-sign.txt'
-        $files.FullName | Set-Content -Path $fileList
-        Write-Host "Signing $($files.Count) file(s):"
-        $files.FullName | Write-Host
-
-        #single invocation to sign all files to save signing API quota
-        java -jar $jsign `
-          --storetype TRUSTEDSIGNING `
-          --keystore $env:SIGNING_ENDPOINT `
-          --storepass env:SIGNING_TOKEN `
-          --alias "$env:SIGNING_ACCOUNT/$env:SIGNING_PROFILE" `
-          --alg SHA-256 `
-          --tsaurl http://timestamp.acs.microsoft.com `
-          --tsmode RFC3161 `
-          "@$fileList"
-        if($LASTEXITCODE -ne 0) { throw "jsign failed with exit code $LASTEXITCODE" }
 
     - name: Publish
       if: ${{ github.event_name != 'workflow_dispatch' || inputs.publish }}
