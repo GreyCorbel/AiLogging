@@ -65,15 +65,15 @@ Function Write-AiTrace
     Process
     {   
         $baseData = [ordered]@{
-            message = $Message
             severityLevel = $Severity
+            message = $Message
         }
         $envelope = New-AiEnvelope -Connection $Connection -TelemetryType Message -BaseData $baseData -Metadata $Metadata
 
         Write-Verbose "AiLogger: Writing trace $Severity`: $Message"
         Add-AiTelemetry -Connection $Connection -Envelope $envelope
         if ($PassThru) {
-            return[PSCustomObject]$baseData
+            return ([PSCustomObject]$baseData | select-object severityLevel, message)
         }
     }
 }

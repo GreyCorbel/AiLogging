@@ -946,6 +946,8 @@ Function Write-AiTrace
         [System.Collections.Generic.Dictionary[String,String]]
             #Optional metadata to be sent with trace
         $Metadata=$null,
+        [switch]
+        $PassThru,
         [Parameter()]
             #Connection created by Connect-AiLogger
             #Defaults to last created connection
@@ -958,13 +960,16 @@ Function Write-AiTrace
     Process
     {   
         $baseData = [ordered]@{
-            message = $Message
             severityLevel = $Severity
+            message = $Message
         }
         $envelope = New-AiEnvelope -Connection $Connection -TelemetryType Message -BaseData $baseData -Metadata $Metadata
 
         Write-Verbose "AiLogger: Writing trace $Severity`: $Message"
         Add-AiTelemetry -Connection $Connection -Envelope $envelope
+        if ($PassThru) {
+            return ([PSCustomObject]$baseData | select-object severityLevel, message)
+        }
     }
 }
 #endregion Public commands
